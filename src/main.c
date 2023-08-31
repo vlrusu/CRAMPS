@@ -18,11 +18,13 @@
 #define NSTEPS 200
 // #define SPISPEED 320000
 
+const int PIN_CS = 9;
+
 #define POWERPIN 0
-#define PIN_MISO 20
-const int PIN_CS = 19;
-#define PIN_SCK 15
-#define PIN_MOSI 18
+#define PIN_MISO 8
+
+#define PIN_SCK 6
+#define PIN_MOSI 7
 
 enum MCPs
 {
@@ -110,11 +112,11 @@ int main(int argc, char *argv[])
 
   sleep_ms(1000);
 
-  spi_init(spi_default, 5000 * 1000);
+  spi_init(spi0, 10000000);
 
   gpio_init(POWERPIN);
   gpio_set_dir(POWERPIN, GPIO_OUT);
-  gpio_put(POWERPIN, 1);
+  gpio_put(POWERPIN, 0);
 
   gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
   gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
@@ -142,6 +144,17 @@ int main(int argc, char *argv[])
       SlotCounter = 0;
     }
 
+    else if (input == 'P')
+      {
+	printf("Powering in\n");
+	gpio_put(POWERPIN, 1);
+      }
+    else if (input == 'O')
+      {
+	printf("Powering off\n");
+	gpio_put(POWERPIN, 0);
+      }
+    
     else if (input == 'T')
     {
       printf("Testing MCPs\n");
@@ -186,7 +199,7 @@ int main(int argc, char *argv[])
       }
       initialization(); // channelnumber);
     }
-
+    /*
     int n = 0;
 
     int countloop = 0;
@@ -232,6 +245,9 @@ int main(int argc, char *argv[])
 
     if (currentArrayIndex > 0)
       printf("\n");
+
+
+    */
   }
 
   return 0;
