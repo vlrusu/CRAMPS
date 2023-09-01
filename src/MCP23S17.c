@@ -50,11 +50,6 @@
 #define OPCODEW (0b01000000) // Opcode for MCP23S17 with LSB (bit0) set to write (0), address OR'd in later, bits 1-3
 #define OPCODER (0b01000001) // Opcode for MCP23S17 with LSB (bit0) set to read (1), address OR'd in later, bits 1-3
 
-// Constructor to instantiate an instance of MCP to a specific chip (address)
-
-static const uint8_t spi_mode = 0;
-static const uint8_t spi_bpw = 8;          // bits per word
-static const uint32_t spi_speed = 3000000; // was 5000000
 static const uint16_t spi_delay = 0;
 
 extern const int PIN_CS;
@@ -87,8 +82,8 @@ void MCP_setup(MCP *mcp, uint8_t address)
   mcp->_invertCache = 0x0000; // Default input inversion state is not inverted, 0x0000
 
   MCP_wordWrite(mcp, IODIRA, 0x0);
-//  MCP_wordWrite(mcp, GPIOA, 0xff);
-  MCP_wordWrite(mcp, GPIOA, 0xff00);
+  //MCP_wordWrite(mcp, GPIOA, 0xff);
+  MCP_wordWrite(mcp, GPIOA, 0xbeef);
 
   // exit(1);
   //  mcp->_outputACache = MCP_byteRead(mcp, OLATA) ;
@@ -103,9 +98,9 @@ void MCP_byteWrite(MCP *mcp, uint8_t reg, uint8_t value)
   tx_buf[1] = reg;
   tx_buf[2] = value;
 
-  cs_select();
-  spi_write_blocking(spi_default, tx_buf, 3);
-  cs_deselect();
+    cs_select();
+  spi_write_blocking(spi0, tx_buf, 3);
+    cs_deselect();
 }
 
 void MCP_wordWrite(MCP *mcp, uint8_t reg, uint16_t value)
@@ -117,9 +112,9 @@ void MCP_wordWrite(MCP *mcp, uint8_t reg, uint16_t value)
   tx_buf[2] = value & 0xFF;
   tx_buf[3] = (value >> 8) & 0xFF;
 
-  cs_select();
-  spi_write_blocking(spi_default, tx_buf, 4);
-  cs_deselect();
+    cs_select();
+  spi_write_blocking(spi0, tx_buf, 4);
+    cs_deselect();
 }
 
 uint8_t MCP_byteRead(MCP *mcp, uint8_t reg)
@@ -130,13 +125,17 @@ uint8_t MCP_byteRead(MCP *mcp, uint8_t reg)
   tx_buf[1] = reg;
   tx_buf[2] = 0;
 
-  uint8_t rx_buf[sizeof tx_buf];
+  uint8_t rx_buf[3];
 
-  cs_select();
-  spi_write_read_blocking(spi_default, tx_buf, rx_buf, 3);
-  cs_deselect();
+  
+    cs_select();
+    uint8_t n = spi_write_read_blocking(spi0, tx_buf, rx_buf, 3);
+    cs_deselect();
 
-  return rx_buf[2];
+  //  printf("%d\n",n);
+  //  printf("%2x %2x %2x\n",rx_buf[0],rx_buf[1],rx_buf[2]);
+    uint8_t recv = rx_buf[2];
+  return recv;
 }
 
 uint16_t MCP_wordRead(MCP *mcp, uint8_t reg)
@@ -151,9 +150,9 @@ uint16_t MCP_wordRead(MCP *mcp, uint8_t reg)
 
   uint8_t rx_buf[sizeof tx_buf];
 
-  cs_select();
-  spi_write_read_blocking(spi_default, tx_buf, rx_buf, 4);
-  cs_deselect();
+    cs_select();
+  uint8_t n = spi_write_read_blocking(spi0, tx_buf, rx_buf, 4);
+    cs_deselect();
 
   value |= rx_buf[2];
 

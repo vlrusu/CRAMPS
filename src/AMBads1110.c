@@ -14,7 +14,7 @@ void _AMBads1110_init(AMBads1110_t *self, MI2C *mi2c)
   uint8_t mode = 1;       // 1 - continuous conversion 0 - one-shot
   uint8_t channel = 0;    // obviously this will be changed by the code
   // self->config = 0x80;// | (channel << 5) | (mode << 4) | (samplerate << 2) | (gain) ;
-  self->config = 0x84; // 4; //8; //4; //8; //0x8C;      //0 | (channel << 5) | (mode << 4) | (samplerate << 2) | (gain) ;
+  self->config = 0x80; // 4; //8; //4; //8; //0x8C;      //0 | (channel << 5) | (mode << 4) | (samplerate << 2) | (gain) ;
 }
 
 uint16_t _AMBads1110_setconfig(AMBads1110_t *self, int channel)
