@@ -71,12 +71,14 @@ uint16_t _AMBads1110_read(AMBads1110_t *self, float *dataByCramp, int channel)
   uint8_t secondByteByCramp[16];
   uint8_t thirdByteByCramp[16];
 
-  uint8_t nCramps = self->_mi2c->_nCramps;
+  uint8_t nCramps = self->_mi2c->_nCramps[channel];
 
   // printf("begin AMBads1110_read nCramps=%d\n",nCramps);
   uint16_t retc = 0;
 
-  uint8_t AMBADS1110_ADDRESS = channel==0 ? AMBADS1110_ADDRESS_CH0 : AMBADS1110_ADDRESS_CH1;
+  uint8_t AMBADS1110_ADDRESS = I2CADDRESS[channel];
+  
+  //channel==0 ? AMBADS1110_ADDRESS_CH0 : AMBADS1110_ADDRESS_CH1;
   
 
   retc = MI2C_start(self->_mi2c, AMBADS1110_ADDRESS << 1 | MI2C_READ);

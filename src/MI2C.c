@@ -4,25 +4,46 @@
 #include "MI2C.h"
 #include <unistd.h>
 
-void MI2C_setup(MI2C *self, MCP *mcp_sda, uint16_t sdaPinMask, MCP *mcp_scl, uint8_t sclPin)
+#define ALLPINS  0xffff
+
+void MI2C_setup(MI2C *self, MCP *mcp_sda, MCP *mcp_scl, uint8_t sclPin)
 {
   self->_mcp_sda = mcp_sda;
-  self->_sdaPinMask = sdaPinMask;
   self->_mcp_scl = mcp_scl;
   self->_sclPin = sclPin;
 
-  uint8_t count = 0;
-  for (int i = 0; i < 16; i++)
-    if ((sdaPinMask >> i & 0x1))
-      count++;
 
-  self->_nCramps = count;
+  self->_sdaPinMask[0] = 0;
+  self->_sdaPinMask[1] = 0;
+  self->_sdaPinMask[2] = 0;
+
+  
+
+  self->_nCramps[0] = 0;
+  self->_nCramps[1] = 0;
+  self->_nCramps[2] = 0;
   // printf("MI2C nCramps = %04x \n", count);
-  MCP_maskpinMode(self->_mcp_sda, self->_sdaPinMask, MCP_OUTPUT);
-  MCP_maskWrite(self->_mcp_sda, self->_sdaPinMask, 1);
+  MCP_maskpinMode(self->_mcp_sda, ALLPINS, MCP_OUTPUT);
+  MCP_maskWrite(self->_mcp_sda, ALLPINS, 1);
 
-  MCP_pinMode(self->_mcp_scl, self->_sclPin, MCP_OUTPUT);
-  MCP_pinWrite(self->_mcp_scl, self->_sclPin, 1);
+  
+}
+
+void MI2C_scanbus(MI2C *self)
+{
+
+//try each address
+for (int iaddr = 0; iaddr<sizeof(I2CADDRESS)){
+uint8_t thisaddress = I2CADDRESS[iaddr];
+uint16_t ret = MI2C_start(self, thisaddress << 1 | MI2C_WRITE);
+
+self->_sdaPinMask[iaddr] = ret;
+
+MI2C_write(self, 0); //do I need this?
+MI2C_stop(self);
+
+}
+
 }
 
 void MI2C_read(MI2C *self, uint8_t last, uint16_t *dataByByte)

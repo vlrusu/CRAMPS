@@ -35,16 +35,20 @@
 /** Bit to or with address for write start and write restart */
 #define MI2C_WRITE 0
 
+#define NADDR 3;
+
+const uint8_t I2CADDRESS[NADDR]={0x23,0x24,0x25};
+
 typedef struct{
     MCP *_mcp_scl; // SPI expander for clock line of the MI2C bus
     MCP *_mcp_sda; // SPI expander for data line of the I2c bus
-    uint16_t _sdaPinMask; // pin number on _mcp_sda for sda pin
-    uint8_t _nCramps;
+    uint8_t _nCramps[NADDR];
     uint16_t _sclPin; // pin number on _mcp_scl for scl pin
+    uint16_t _sdaPinMask[NADDR];
 } MI2C;
 
 // sets mcp and pins, and sets pins to outputs and HIGH
-void MI2C_setup(MI2C *self, MCP *mcp_sda, uint16_t sdaPinMask, MCP *mcp_scl, uint8_t sclPin);
+void MI2C_setup(MI2C *self, MCP *mcp_sda, MCP *mcp_scl, uint8_t sclPin);
 
 // Performs an 8 bit read using 9 total clocks of MI2C bus.
 // During a multi byte read, master holds data low for each ack except for last read.
