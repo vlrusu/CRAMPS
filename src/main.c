@@ -27,6 +27,10 @@ const int PIN_CS = 5;
 #define PIN_SCK 6
 #define PIN_MOSI 7
 
+#define NADDR 3
+const uint8_t I2CADDRESS[NADDR] = {0x4A,0x4B, 0x4D};
+
+
 enum MCPs
   {
    MCPHV0,
@@ -39,10 +43,12 @@ MI2C mi2c_cramps[4];
 
 #define MAX_LINE_LENGTH 24
 
-AMBads1110_t adc[4];
+AMBads1110_t adc[4*NADDR];
 
 int SlotCounter = 0;
 int enabledSlots[MAX_LINE_LENGTH];
+
+uint16_t crampMask[4][NADDR];
 
 
 clock_t clock()
@@ -66,7 +72,7 @@ void initialization()
 
   printf("begin\n");
 
-  
+
   // setup MCPs for cramps
   for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
     {
@@ -74,31 +80,51 @@ void initialization()
       MCP_setup(&crampMCP[imcp], imcp);
     }
 
-  uint16_t crampMasks[4] = {0, 0, 0, 0};
   // initialize cramps
-  for (int i = 0; i < SlotCounter; i++)
-    {
+  /* for (int i = 0; i < SlotCounter; i++) */
+  /*   { */
 
-      printf("Enabling slot %d\n", enabledSlots[i]);
+  /*     printf("Enabling slot %d\n", enabledSlots[i]); */
 
-      if (enabledSlots[i] >= 0 && enabledSlots[i] < 14)
-	crampMasks[0] |= (1 << (enabledSlots[i] + 2));
-      if (enabledSlots[i] >= 14 && enabledSlots[i] < 24)
-	crampMasks[1] |= (1 << (enabledSlots[i] - 14));
-      if (enabledSlots[i] >= 24 && enabledSlots[i] < 38)
-	crampMasks[2] |= (1 << (enabledSlots[i] - 24 + 2));
-      if (enabledSlots[i] >= 38 && enabledSlots[i] < 48)
-	crampMasks[3] |= (1 << (enabledSlots[i] - 38));
+  /*     if (enabledSlots[i] >= 0 && enabledSlots[i] < 14) */
+  /* 	crampMasks[0] |= (1 << (enabledSlots[i] + 2)); */
+  /*     if (enabledSlots[i] >= 14 && enabledSlots[i] < 24) */
+  /* 	crampMasks[1] |= (1 << (enabledSlots[i] - 14)); */
+  /*     if (enabledSlots[i] >= 24 && enabledSlots[i] < 38) */
+  /* 	crampMasks[2] |= (1 << (enabledSlots[i] - 24 + 2)); */
+  /*     if (enabledSlots[i] >= 38 && enabledSlots[i] < 48) */
+  /* 	crampMasks[3] |= (1 << (enabledSlots[i] - 38)); */
+  /*   } */
+
+  uint8_t retc = 0;
+  retc = MI2C_setup(&mi2c_cramps[0], &crampMCP[MCPHV0], &crampMCP[MCPHV0], 0xfc,1); // SDA SCL - this is new
+  printf("%d\n",retc);
+  retc = MI2C_setup(&mi2c_cramps[1], &crampMCP[MCPHV1], &crampMCP[MCPHV0], 0xff, 1); // SDA SCL - this is new
+  printf("%d\n",retc);
+  retc = MI2C_setup(&mi2c_cramps[2], &crampMCP[MCPHV2], &crampMCP[MCPHV2], 0xfc, 1); // SDA SCL - this is new
+  printf("%d\n",retc);
+  retc = MI2C_setup(&mi2c_cramps[3], &crampMCP[MCPHV3], &crampMCP[MCPHV2], 0xff, 1); // SDA SCL - this is new
+  printf("%d\n",retc);
+
+
+  scan();
+
+
+  for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++){
+    for (int iaddr = 0; iaddr<NADDR; iaddr++){
+      if (crampMask[imcp][iaddr] != 0 ){
+	_AMBads1110_init(&adc[ NADDR*imcp + iaddr], &mi2c_cramps[imcp],I2CADDRESS[iaddr],crampMask[imcp][iaddr]);
+	uint16_t ret = _AMBads1110_setconfig(&adc[ NADDR*imcp + iaddr]);
+      }
     }
+  }
 
-  MI2C_setup(&mi2c_cramps[0], &crampMCP[MCPHV0], crampMasks[0], &crampMCP[MCPHV0], 1); // SDA SCL - this is new
-  MI2C_setup(&mi2c_cramps[1], &crampMCP[MCPHV1], crampMasks[1], &crampMCP[MCPHV0], 1); // SDA SCL - this is new
-  MI2C_setup(&mi2c_cramps[2], &crampMCP[MCPHV2], crampMasks[2], &crampMCP[MCPHV2], 1); // SDA SCL - this is new
-  MI2C_setup(&mi2c_cramps[3], &crampMCP[MCPHV3], crampMasks[3], &crampMCP[MCPHV2], 1); // SDA SCL - this is new
-
+	
+  /*
+  
   for (int i = 0; i < 4; i++)
     {
-      _AMBads1110_init(&adc[i], &mi2c_cramps[i]);
+
     }
 
   for (int i = 0; i < 4; i++)
@@ -109,8 +135,20 @@ void initialization()
     {
       _AMBads1110_setconfig(&adc[i], 1); // crampchannel);
     }
-
+  */
   printf("Initialization complete\n");
+}
+
+
+void scan(){
+
+  for (int iaddr = 0; iaddr<NADDR; iaddr++){
+    for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++){
+      uint16_t ret = MI2C_scanbus(&mi2c_cramps[imcp],I2CADDRESS[iaddr]);
+      crampMask[imcp][iaddr] = ret;
+
+    }
+  }
 }
 
 int main(int argc, char *argv[])
@@ -180,6 +218,26 @@ int main(int argc, char *argv[])
 	  printf("Powering off\n");
 	  gpio_put(POWERPIN, 0);
 	}
+      else if (input == 'S')
+	{
+	  printf("Scanning\n");
+	  //	  scan();
+
+
+	  for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++){
+	    for (int i = 0; i < 16; i++) {
+	      for (int iaddr = 0; iaddr<NADDR; iaddr++){
+		uint16_t ret = crampMask[imcp][iaddr];
+
+		if ( (imcp % 2) == 0 ) ret = ret >> 2;
+
+		if ((ret & (1 << i)) != 0) {
+		  printf("Slot %d has an address at %.2x\n",14*imcp+i,I2CADDRESS[iaddr]);
+		}
+	      }
+	    }
+	  }
+	}
     
       else if (input == 'T')
 	{
@@ -208,86 +266,80 @@ int main(int argc, char *argv[])
       else if (input == 'I')
 	{
 
-	  SlotCounter = 0;
-	  char *pLine = getLine(false, '\r');
-	  if (!*pLine)
-	    {
-	      printf("returned empty - nothing blocked");
-	    }
-	  else
-	    {
-
-	      // Tokenize the input string using strtok
-	      char *token = strtok(pLine, " ");
-	      while (token != NULL)
-		{
-		  enabledSlots[SlotCounter++] = atoi(token); // Convert token to a double
-		  token = strtok(NULL, " ");                 // Get the next token
-		}
-
-	      // Print the parsed numbers
-	      for (int i = 0; i < SlotCounter; i++)
-		{
-		  printf("%d ", enabledSlots[i]);
-		}
-	      printf("\r\n");
-	      free(pLine); // dont forget freeing buffer !!
-	    }
 	  initialization(); // channelnumber);
 	}
 
-      else if (input == 'S')
+      else if (input == 'A')
 	startACQ= 1;
       
 
-
+      
       if (startACQ){
 	int n = 0;
 
 
 	countloop ++;
-	
-	float currents[24];
-	float currents1[24];
-	float tmpcurrents[24];
-	float tmpcurrents1[24];
+
 
 	uint8_t ncramps = 0;
-	int tmp = 0;
-	uint8_t currentArrayIndex = 0;
-	uint8_t currentArrayIndex1 = 0;
 
-	for (int i = 0; i < 4; i++)
-	  {
-	    ncramps = adc[i]._mi2c->_nCramps;
-	    uint8_t retc = _AMBads1110_read(&adc[i], &tmpcurrents, 0);
+	for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++){
+	  for (int iaddr = 0; iaddr<NADDR; iaddr++){
+	    if (crampMask[imcp][iaddr] != 0 ){
+	      float tmpcurrents[24];
+	      uint8_t adcindex = NADDR*imcp + iaddr;
+	      ncramps = adc[adcindex]._nCramps;
+	      _AMBads1110_read(&adc[adcindex ], &tmpcurrents);
 
-	    memcpy(currents + currentArrayIndex, tmpcurrents, sizeof(float) * ncramps);
-	    currentArrayIndex += ncramps;
+	      for (int ich = 0; ich<ncramps; ich++){
+		printf("%d %.2x %7.5f\n",imcp,iaddr,tmpcurrents[ich]);
+	      }
+	    }
 	  }
+	}
 
-	for (int i = 0; i < 4; i++)
-	  {
+	
+	/* float currents[24]; */
+	/* float currents1[24]; */
 
-	    ncramps = adc[i]._mi2c->_nCramps;
-	    uint8_t retc = _AMBads1110_read(&adc[i], &tmpcurrents1, 1);
+	/* float tmpcurrents1[24]; */
 
-	    // printf("tmpcurrents1 =%04x \n", tmpcurrents1);
-	    memcpy(currents1 + currentArrayIndex1, tmpcurrents1, sizeof(float) * ncramps);
-	    currentArrayIndex1 += ncramps;
-	  }
 
-	for (int i = 0; i < currentArrayIndex; i++)
-	  {
-	    // flag_recover = 0;
-	    currents[i] = 1e2 * currents[i];
-	    currents1[i] = 1e2 * currents1[i];
-	    printf("%6.3f %6.3f ", currents[i], currents1[i]);
-	    // send data out to pi
-	  }
+	/* int tmp = 0; */
+	/* uint8_t currentArrayIndex = 0; */
+	/* uint8_t currentArrayIndex1 = 0; */
 
-	if (currentArrayIndex > 0)
-	  printf("\n");
+	/* for (int i = 0; i < 4; i++) */
+	/*   { */
+	/*     ncramps = adc[i]._mi2c->_nCramps; */
+	/*     uint8_t retc = _AMBads1110_read(&adc[i], &tmpcurrents, 0); */
+
+	/*     memcpy(currents + currentArrayIndex, tmpcurrents, sizeof(float) * ncramps); */
+	/*     currentArrayIndex += ncramps; */
+	/*   } */
+
+	/* for (int i = 0; i < 4; i++) */
+	/*   { */
+
+	/*     ncramps = adc[i]._mi2c->_nCramps; */
+	/*     uint8_t retc = _AMBads1110_read(&adc[i], &tmpcurrents1, 1); */
+
+	/*     // printf("tmpcurrents1 =%04x \n", tmpcurrents1); */
+	/*     memcpy(currents1 + currentArrayIndex1, tmpcurrents1, sizeof(float) * ncramps); */
+	/*     currentArrayIndex1 += ncramps; */
+	/*   } */
+
+	/* for (int i = 0; i < currentArrayIndex; i++) */
+	/*   { */
+	/*     // flag_recover = 0; */
+	/*     currents[i] = 1e2 * currents[i]; */
+	/*     currents1[i] = 1e2 * currents1[i]; */
+	/*     printf("%6.3f %6.3f ", currents[i], currents1[i]); */
+	/*     // send data out to pi */
+	/*   } */
+
+	/* if (currentArrayIndex > 0) */
+	/*   printf("\n"); */
 
 	if (countloop%100==0){
 	  clock_t endTime = clock();
@@ -297,7 +349,9 @@ int main(int argc, char *argv[])
 	}
 
       }
+
     }
+
 
   return 0;
 }

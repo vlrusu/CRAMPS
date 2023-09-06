@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include "MI2C.h"
 
+
+
+
 //#define AMBADS1110_FS 8192
 //#define AMBADS1110_FS 32768
 #define AMBADS1110_FS 8192 //16384
@@ -15,12 +18,15 @@
 typedef struct {
   int config;
   MI2C*  _mi2c;
+  uint8_t _i2caddress;
+  uint16_t _addrMask;
+  uint8_t _nCramps;
   
 } AMBads1110_t;
 
 
-void _AMBads1110_init(AMBads1110_t* self, MI2C* i2c);
-uint16_t _AMBads1110_setconfig(AMBads1110_t* self, int channel);
-uint16_t _AMBads1110_read(AMBads1110_t* self, float*, int channel);
+void _AMBads1110_init(AMBads1110_t* self, MI2C* i2c, uint8_t, uint16_t);
+uint16_t _AMBads1110_setconfig(AMBads1110_t* self);
+uint16_t _AMBads1110_read(AMBads1110_t* self, float*);
 
 #endif

@@ -35,39 +35,42 @@
 /** Bit to or with address for write start and write restart */
 #define MI2C_WRITE 0
 
-#define NADDR 3;
 
-const uint8_t I2CADDRESS[NADDR]={0x23,0x24,0x25};
+
+
 
 typedef struct{
     MCP *_mcp_scl; // SPI expander for clock line of the MI2C bus
     MCP *_mcp_sda; // SPI expander for data line of the I2c bus
-    uint8_t _nCramps[NADDR];
     uint16_t _sclPin; // pin number on _mcp_scl for scl pin
-    uint16_t _sdaPinMask[NADDR];
+    uint16_t _sdaPinMaskAll; //starting point
 } MI2C;
 
 // sets mcp and pins, and sets pins to outputs and HIGH
-void MI2C_setup(MI2C *self, MCP *mcp_sda, MCP *mcp_scl, uint8_t sclPin);
+uint8_t MI2C_setup(MI2C *self, MCP *mcp_sda, MCP *mcp_scl, uint16_t sdaAll, uint8_t sclPin);
 
 // Performs an 8 bit read using 9 total clocks of MI2C bus.
 // During a multi byte read, master holds data low for each ack except for last read.
 // If last == 1 master will not ack and the read will be ended.
-void MI2C_read(MI2C* self, uint8_t last, uint16_t*);
+void MI2C_read(MI2C* self, uint8_t last, uint16_t, uint16_t*);
 
 // Sets up a transfer by first setting sda and scl low and then
 // writing the MI2C address of the device using 9 clocks
 // addressRW == Upper 7 bits are device MI2C address, lowest bit is R/W
 // the slave device will hold data low for ack. return value is this ack bit, so
 // a return value of 1 means an error has occured.
-uint8_t MI2C_start(MI2C* self, uint8_t addressRW);
+uint8_t MI2C_start(MI2C* self, uint16_t, uint8_t addressRW);
 
 // Stops the transfer by setting sda low, then scl high, then sda high
-void MI2C_stop(MI2C* self);
+void MI2C_stop(MI2C* self, uint16_t);
 
 // Performs an 8 bit write using 9 total clocks of the MI2C bus.
 // During a write the slave device will hold data low for ack. return value is this ack bit, so
 // a return value of 1 means an error has occured.
-uint8_t MI2C_write(MI2C* self, uint8_t data);
+uint16_t MI2C_write(MI2C* self, uint16_t, uint8_t data);
+
+//scan bus
+uint16_t MI2C_scanbus(MI2C *self, uint16_t);
+
 
 #endif  // MI2C_MASTER_H
