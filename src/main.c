@@ -97,13 +97,13 @@ void initialization()
   /*   } */
 
   uint8_t retc = 0;
-  retc = MI2C_setup(&mi2c_cramps[0], &crampMCP[MCPHV0], &crampMCP[MCPHV0], 0xfc, 1); // SDA SCL - this is new
+  retc = MI2C_setup(&mi2c_cramps[0], &crampMCP[MCPHV0], &crampMCP[MCPHV0], 0xfffc, 1); // SDA SCL - this is new
   printf("%d\n", retc);
-  retc = MI2C_setup(&mi2c_cramps[1], &crampMCP[MCPHV1], &crampMCP[MCPHV0], 0xff, 1); // SDA SCL - this is new
+  retc = MI2C_setup(&mi2c_cramps[1], &crampMCP[MCPHV1], &crampMCP[MCPHV0], 0xffff, 1); // SDA SCL - this is new
   printf("%d\n", retc);
-  retc = MI2C_setup(&mi2c_cramps[2], &crampMCP[MCPHV2], &crampMCP[MCPHV2], 0xfc, 1); // SDA SCL - this is new
+  retc = MI2C_setup(&mi2c_cramps[2], &crampMCP[MCPHV2], &crampMCP[MCPHV2], 0xfffc, 1); // SDA SCL - this is new
   printf("%d\n", retc);
-  retc = MI2C_setup(&mi2c_cramps[3], &crampMCP[MCPHV3], &crampMCP[MCPHV2], 0xff, 1); // SDA SCL - this is new
+  retc = MI2C_setup(&mi2c_cramps[3], &crampMCP[MCPHV3], &crampMCP[MCPHV2], 0xffff, 1); // SDA SCL - this is new
   printf("%d\n", retc);
 
   scan();
