@@ -21,6 +21,8 @@
 
 const int PIN_CS = 5;
 
+#define DEVICEID 0xA0
+
 #define POWERPIN 0
 #define PIN_MISO 4
 
@@ -99,11 +101,11 @@ void initialization()
   uint8_t retc = 0;
   retc = MI2C_setup(&mi2c_cramps[0], &crampMCP[MCPHV0], &crampMCP[MCPHV0], 0xfffc, 1); // SDA SCL - this is new
   printf("%d\n", retc);
-  retc = MI2C_setup(&mi2c_cramps[1], &crampMCP[MCPHV1], &crampMCP[MCPHV0], 0xffff, 1); // SDA SCL - this is new
+  retc = MI2C_setup(&mi2c_cramps[1], &crampMCP[MCPHV1], &crampMCP[MCPHV0], 0x3ff, 1); // SDA SCL - this is new
   printf("%d\n", retc);
   retc = MI2C_setup(&mi2c_cramps[2], &crampMCP[MCPHV2], &crampMCP[MCPHV2], 0xfffc, 1); // SDA SCL - this is new
   printf("%d\n", retc);
-  retc = MI2C_setup(&mi2c_cramps[3], &crampMCP[MCPHV3], &crampMCP[MCPHV2], 0xffff, 1); // SDA SCL - this is new
+  retc = MI2C_setup(&mi2c_cramps[3], &crampMCP[MCPHV3], &crampMCP[MCPHV2], 0x3ff, 1); // SDA SCL - this is new
   printf("%d\n", retc);
 
   scan();
@@ -255,6 +257,11 @@ int main(int argc, char *argv[])
     {
       printf("Powering off\n");
       gpio_put(POWERPIN, 0);
+    }
+
+     else if (input == 'O')
+    {
+      printf("%.2x\n",DEVICEID);
     }
     else if (input == 'S')
     {
