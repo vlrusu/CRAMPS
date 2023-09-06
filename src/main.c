@@ -184,14 +184,14 @@ int zNumberMap()
 
       for (int ibit = 0; ibit < 16; ibit++)
       {
-        if ((adc[adcindex]._addrMask & (1 << i)) == 0)
+        if ((adc[adcindex]._addrMask & (1 << ibit)) == 0)
           continue;
         zNumbers[imcp][iaddr][count] = mcpborder + ibit;
         count++;
       }
     }
 
-    mcpborder += countSetBits(mi2c_cramps[imcp]._sdaPinMaskAll)
+    mcpborder += countSetBits(mi2c_cramps[imcp]._sdaPinMaskAll);
   }
 }
 
@@ -268,7 +268,7 @@ int main(int argc, char *argv[])
         for (int iaddr = 0; iaddr < NADDR; iaddr++)
         {
           uint8_t adcindex = NADDR * imcp + iaddr;
-          ncramps = adc[adcindex]._nCramps;
+          int ncramps = adc[adcindex]._nCramps;
           for (int ich = 0; ich < ncramps; ich++)
           {
 
