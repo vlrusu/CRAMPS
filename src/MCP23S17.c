@@ -191,7 +191,7 @@ void MCP_maskpinMode(MCP *mcp, uint16_t mask, uint8_t mode)
   else
     mcp->_modeCache = (mcp->_modeCache & ~mask) | (0 & mask);
 
-  //  printf("modeCache=%x\n",mcp->_modeCache);
+      
   MCP_wordWrite(mcp, IODIRA, mcp->_modeCache);
 }
 

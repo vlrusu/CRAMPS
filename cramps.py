@@ -14,39 +14,57 @@ import serial.tools.list_ports
 from datetime import datetime
 import time
 
+#todo - try ACQ and reset on failure
+
 def list_usb_serial_devices(device_type):
     available_ports = serial.tools.list_ports.comports()
     
     usb_serial_devices = []
     
     for port in available_ports:
-        print(port.description)
+ #       print(port.description)
         if device_type in port.description:
             usb_serial_devices.append((port.device, port.serial_number))
     
     return usb_serial_devices
 
+
+
+SCANFILE = "input"
+DATAFILE = "crampdata"
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Command line options")
 
-    parser.add_argument(
-        "-d", "--dir", help="Folder containing the dicam files", required=False)
-    parser.add_argument("-v", "--verbose", action="store_true",
-                        help="Enable verbose output")
+    
     parser.add_argument("-s", "--scan", action="store_true",
-                        help="Enable file generation")
+                        help="Perform a cramp scan")
 
     parser.add_argument(
         "-f", "--file", help="File name containing the translations and rotations", required=False)
     parser.add_argument("-a", "--address",
                         help="Address of device", required=True)
+    parser.add_argument("-n", "--nsamples",
+                        help="Number of required data poits to take", required=False, default = 0)
+
+
+    parser.add_argument("-o", "--poweroff",action="store_true",
+                        help="Power off")
 
     args = parser.parse_args()
 
+# Get the current date and time
+    current_datetime = datetime.now()
+
+# Format the date and time as a string in a specific format
+    formatted_datetime = current_datetime.strftime("%Y-%m-%d-%H-%M")
+    
+
+
     # Get a list of all available serial ports
     
-    device_type = "usb serial"  # Modify this to match the device type you're looking for
+    device_type = "Pico - Board CDC"  # Modify this to match the device type you're looking for
     
     usb_serial_devices = list_usb_serial_devices(device_type)
     sers = []
@@ -59,12 +77,108 @@ if __name__ == '__main__':
     else:
         print("No USB Serial Devices found.")
         
-        
-    
-    
+    serport = 0
+    deviceid = args.address
     for ser in sers:
+        
         ser.write(b'D')
     
-        ret = ser.readline().decode('ascii')
+        ret = ser.readline().decode('ascii').strip()
+        if (ret==deviceid) :
+            serport = ser
         print(ret)
+    ser=serport
+    if serport == 0:
+        print("Device ID not found")
+        exit()
+        
     
+    #check whether to power off
+    if (args.poweroff):
+        ser.write(b'O')
+        exit()
+        
+    #just in case    
+    ser.write(b'R')
+    ser.readline()
+        
+    #first thig, power up
+    
+    ser.write(b'P')
+    ser.readline()
+    
+    time.sleep(2)
+    #then do a MCP test
+    ser.write(b'T') 
+    ser.readline().decode('ascii')
+    tmp = ser.readline().decode('ascii').strip()
+    if (tmp != 'beef beef beef beef'):
+        print("MCPs not initialized properly\n")
+        print(tmp)
+        exit()
+        
+        
+    #now initialize
+    ser.write(b'I')
+    tmp = ser.readline().decode('ascii').strip()
+    if (tmp != '0 0 0 0') :
+        print("MCPs not returning retc correctly\n")
+        print(tmp)
+        exit()
+    
+    ncramps = ser.readline().decode('ascii').strip().split(":")[1]
+    print("You have " + ncramps + " cramps installed")
+    
+    tmp = ser.readline().decode('ascii').strip().split()
+    for i in range(len(tmp)):
+        if (int(tmp[i])!=0):
+            print("AMBADC1110 not initialized correctly")
+            
+    print (ser.readline().decode('ascii').strip())
+    
+    #if a scan is required stop at that
+    if (args.scan):
+        ser.write(b'S')
+        tmp=[]
+        ser.readline()
+        while(1):
+            line = ser.readline().decode('ascii').strip()
+            print(line)
+        
+            if (line == "Scanning complete"):
+                break
+        exit()
+    
+    #now do a scan
+    ser.write(b'S')
+    tmp=[]
+    ser.readline()
+    while(1):
+        line = ser.readline().decode('ascii').strip()
+        
+        if (line == "Scanning complete"):
+            break
+        tmp.append(line)
+
+    SCANFILE = SCANFILE + "_" + formatted_datetime+".txt"
+    with open(SCANFILE, 'w') as file:
+        for i in range(len(tmp)):
+            file.write(tmp[i] + "\n")
+            
+    file.close()
+    
+    
+    #now start acquisition for the desired number of samples
+    nsample = int(args.nsamples)
+    
+    DATAFILE = DATAFILE + "_" + formatted_datetime + ".dat"
+    file = open(DATAFILE, "w")
+    count = 0
+    ser.write(b'A')
+    while count<nsample+1:
+        line = ser.readline().decode('ascii')
+        file.write(line)
+        count = count+1
+    file.close()
+    ser.write(b'R')
+        

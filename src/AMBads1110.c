@@ -15,7 +15,6 @@ void _AMBads1110_init(AMBads1110_t *self, MI2C *mi2c, uint8_t address, uint16_t 
 
   self->_nCramps = count;
 
-  printf("Init ADS1110 with %d cramps at %.2x address and mask %.4x\n", count, address, addressMask);
 
   // FIXME
   //  ocbit not set 0x80 no effect on RDY bit continuous conversion mode
@@ -23,28 +22,34 @@ void _AMBads1110_init(AMBads1110_t *self, MI2C *mi2c, uint8_t address, uint16_t 
   uint8_t samplerate = 1; // 16SPS 16 bit
   uint8_t mode = 1;       // 1 - continuous conversion 0 - one-shot
   // self->config = 0x80;// | (channel << 5) | (mode << 4) | (samplerate << 2) | (gain) ;
-  self->config = 0x80; // 4; //8; //4; //8; //0x8C;      //0 | (channel << 5) | (mode << 4) | (samplerate << 2) | (gain) ;
+  self->config = 0x80 | (SAMPLERATE<<2); // 4; //8; //4; //8; //0x8C;      //0 | (channel << 5) | (mode << 4) | (samplerate << 2) | (gain) ;
 }
 
 uint16_t _AMBads1110_setconfig(AMBads1110_t *self)
 {
 
-  uint16_t ret = MI2C_start(self->_mi2c, self->_addrMask, self->_i2caddress << 1 | MI2C_WRITE);
+  MI2C_start(self->_mi2c,self->_addrMask);
+  uint16_t ret = MI2C_write(self->_mi2c, self->_addrMask, self->_i2caddress << 1 | MI2C_WRITE);
+  ret = ret & self->_addrMask;
+
+
+
 
   if (ret != MI2C_ACK)
   {
-    return ret;
+    return 1;
   }
 
   ret = MI2C_write(self->_mi2c, self->_addrMask, self->config);
+  ret = ret & self->_addrMask;
 
   if (ret != MI2C_ACK)
   {
-    return ret;
+    return 2;
   }
   MI2C_stop(self->_mi2c, self->_addrMask);
 
-  printf("config complete for %.2x\n", self->_i2caddress);
+  //printf("config complete for %.2x\n", self->_i2caddress);
 
   return 0;
 }
@@ -73,11 +78,17 @@ uint16_t _AMBads1110_read(AMBads1110_t *self, float *dataByCramp)
 
   // channel==0 ? AMBADS1110_ADDRESS_CH0 : AMBADS1110_ADDRESS_CH1;
 
-  retc = MI2C_start(self->_mi2c, self->_addrMask, self->_i2caddress << 1 | MI2C_READ);
+  MI2C_start(self->_mi2c,self->_addrMask);
+  retc = MI2C_write(self->_mi2c, self->_addrMask, self->_i2caddress << 1 | MI2C_READ);
+
 
   MI2C_read(self->_mi2c, 0, self->_addrMask, &firstByte);
 
   MI2C_read(self->_mi2c, 0, self->_addrMask, &secondByte);
+
+  MI2C_read(self->_mi2c, 0, self->_addrMask, &thirdByte);
+
+  MI2C_stop(self->_mi2c, self->_addrMask);
 
   // rearrange by cramp
   for (uint8_t i = 0; i < 8; i++)
@@ -108,7 +119,7 @@ uint16_t _AMBads1110_read(AMBads1110_t *self, float *dataByCramp)
     uint16_t rawdata = (firstByteByCramp[chn] << 8) + secondByteByCramp[chn];
     int16_t val = (int16_t)(rawdata);
 
-    dataByCramp[chn] = AMBADS1110_REFV * (float)val / AMBADS1110_FS;
+    dataByCramp[chn] =  AMBADS1110_REFV * (float)val / AMBADS1110_FS;
   }
 
   return retc;

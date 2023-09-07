@@ -27,15 +27,12 @@ uint8_t MI2C_setup(MI2C *self, MCP *mcp_sda, MCP *mcp_scl, uint16_t sdaAll, uint
 uint16_t MI2C_scanbus(MI2C *self, uint16_t thisaddress)
 {
 
-//try each address
-//  for (int iaddr = 0; iaddr<sizeof(I2CADDRESS); iaddr++){
-//    uint8_t thisaddress = I2CADDRESS[iaddr];
-  uint16_t ret = MI2C_start(self, self->_sdaPinMaskAll, thisaddress << 1 | MI2C_READ);
-  printf("%.2x %.4x\n",thisaddress,ret);
-//self->_sdaPinMask[iaddr] = ret;
 
-  //do I need this?
-  //  MI2C_write(self,  self->_sdaPinMaskAll, 0); 
+  MI2C_start(self, self->_sdaPinMaskAll);
+
+  uint16_t ret =  MI2C_write(self, self->_sdaPinMaskAll , thisaddress << 1 | MI2C_READ);
+  ret = ~ret;
+
 
   uint16_t tmp[8];
   MI2C_read(self,0,self->_sdaPinMaskAll,tmp);
@@ -44,9 +41,7 @@ uint16_t MI2C_scanbus(MI2C *self, uint16_t thisaddress)
   MI2C_stop(self, self->_sdaPinMaskAll);
 
   return ret;
-    //
-    
-    //  }
+  
 
 }
 
@@ -76,6 +71,7 @@ void MI2C_read(MI2C *self, uint8_t last, uint16_t mask, uint16_t *dataByByte)
   MCP_pinWrite(self->_mcp_scl, self->_sclPin, 0);
   MCP_maskWrite(self->_mcp_sda, mask, 0);
 
+
   // reorder bits so that only what is masked shows out in the dataByByte array.
   // In other words, if there are holes in teh mask, those bits will bbe dropped
   
@@ -95,24 +91,35 @@ void MI2C_read(MI2C *self, uint8_t last, uint16_t mask, uint16_t *dataByByte)
 
 }
 
-uint8_t MI2C_start(MI2C *self, uint16_t mask,uint8_t addressRW)
+void MI2C_start(MI2C *self, uint16_t mask)
 {
+
+  MCP_maskpinMode(self->_mcp_sda, mask, MCP_OUTPUT);
   MCP_pinWrite(self->_mcp_scl, self->_sclPin, 1);
   MCP_maskWrite(self->_mcp_sda, mask, 1);
   MCP_maskWrite(self->_mcp_sda, mask, 0);
   MCP_pinWrite(self->_mcp_scl, self->_sclPin, 0);
-  return MI2C_write(self, mask, addressRW);
+
+
+  
 }
 
 void MI2C_stop(MI2C *self, uint16_t mask)
 {
-  MCP_maskWrite(self->_mcp_sda, mask, 0);
+ // MCP_maskWrite(self->_mcp_sda, mask, 0);
+ MCP_maskpinMode(self->_mcp_sda, mask, MCP_OUTPUT);
+ MCP_maskWrite(self->_mcp_sda, mask, 0); 
   MCP_pinWrite(self->_mcp_scl, self->_sclPin, 1);
   MCP_maskWrite(self->_mcp_sda, mask, 1);
+ 
+
 }
 
 uint16_t MI2C_write(MI2C *self, uint16_t mask, uint8_t data)
 {
+
+
+  MCP_maskpinMode(self->_mcp_sda, mask, MCP_OUTPUT);
   // write byte
   uint8_t m;
   for (m = 0X80; m != 0; m >>= 1)
@@ -125,7 +132,9 @@ uint16_t MI2C_write(MI2C *self, uint16_t mask, uint8_t data)
   // get Ack or Nak
   MCP_maskpinMode(self->_mcp_sda, mask, MCP_INPUT);
   MCP_pinWrite(self->_mcp_scl, self->_sclPin, 1);
-  uint16_t rack = MCP_pinReadAll(self->_mcp_sda) & mask;
+  uint16_t rack = MCP_pinReadAll(self->_mcp_sda);
+//  printf("test %.4x   %.4x  %.4x\n",rack, mask, rack | ~mask);
+  rack = rack | ~mask;
 
   // reorder bits so that only what is masked shows out in the dataByByte array.
   // In other words, if there are holes in teh mask, those bits will bbe dropped
@@ -142,7 +151,7 @@ uint16_t MI2C_write(MI2C *self, uint16_t mask, uint8_t data)
     }
   */
   MCP_pinWrite(self->_mcp_scl, self->_sclPin, 0);
-  MCP_maskpinMode(self->_mcp_sda, mask, MCP_OUTPUT);
-  MCP_maskWrite(self->_mcp_sda, mask, 0);
+ // MCP_maskpinMode(self->_mcp_sda, mask, MCP_OUTPUT);
+//  MCP_maskWrite(self->_mcp_sda, mask, 0);
   return rack;
 }

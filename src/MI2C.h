@@ -59,7 +59,7 @@ void MI2C_read(MI2C* self, uint8_t last, uint16_t, uint16_t*);
 // addressRW == Upper 7 bits are device MI2C address, lowest bit is R/W
 // the slave device will hold data low for ack. return value is this ack bit, so
 // a return value of 1 means an error has occured.
-uint8_t MI2C_start(MI2C* self, uint16_t, uint8_t addressRW);
+void MI2C_start(MI2C* self, uint16_t);
 
 // Stops the transfer by setting sda low, then scl high, then sda high
 void MI2C_stop(MI2C* self, uint16_t);
