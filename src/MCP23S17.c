@@ -43,6 +43,21 @@
 #define ON (1)
 #define OFF (0)
 
+#define MCPDELAY 1
+
+//#define SOFTSPI
+
+#ifdef SOFTSPI
+#define PIN_MISO 4
+
+#define PIN_SCK 6
+#define PIN_MOSI 3
+#endif
+
+// #define PIN_MISO 4
+// #define PIN_SCK 6
+// #define PIN_MOSI 7
+
 // Here we have things for the SPI bus configuration
 
 // Control byte and configuration register information - Control Byte: "0100 A2 A1 A0 R/W" -- W=0
@@ -54,18 +69,75 @@ static const uint16_t spi_delay = 0;
 
 extern const int PIN_CS;
 
+static inline void delay()
+{
+
+  // asm volatile("nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop");
+
+  for (int i = 0; i < 10; i++)
+  {
+
+    __asm volatile("nop\n");
+  }
+
+  
+}
+
+#ifdef SOFTSPI
+void spi_write(uint8_t *buf, int len)
+{
+
+  for (int iw = 0; iw < len; iw++)
+  {
+    uint8_t data = buf[iw];
+    for (int i = 7; i >= 0; i--)
+    {
+      gpio_put(PIN_MOSI, (data >> i) & 1);
+      delay();
+      gpio_put(PIN_SCK, 1); // Rising edge to clock data in
+      delay();
+      gpio_put(PIN_SCK, 0); // Falling edge
+      delay();
+    }
+  }
+}
+
+void spi_read(uint8_t *rxbuf, int len)
+{
+
+  for (int j = 0; j < len; j++)
+  {
+    uint8_t data = 0;
+    for (int i = 7; i >= 0; i--)
+    {
+      gpio_put(PIN_SCK, 1); // Rising edge to clock data out
+      delay();
+      data |= (gpio_get(PIN_MISO) << i);
+      delay();
+      gpio_put(PIN_SCK, 0); // Falling edge
+      delay();
+    }
+    rxbuf[j] = data;
+  }
+}
+#endif
+
 static inline void cs_select()
 {
-  asm volatile("nop \n nop \n nop");
+  //  asm volatile("nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop");
   gpio_put(PIN_CS, 0); // Active low
-  asm volatile("nop \n nop \n nop");
+  //  asm volatile("nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop");
+
+  //  asm volatile("nop \n nop \n nop");
 }
 
 static inline void cs_deselect()
 {
-  asm volatile("nop \n nop \n nop");
+  // asm volatile("nop \n nop \n nop");
+  // asm volatile("nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop");
   gpio_put(PIN_CS, 1);
-  asm volatile("nop \n nop \n nop");
+  //  asm volatile("nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop \n nop");
+  //  asm volatile("nop \n nop \n nop");
 }
 
 void MCP_setup(MCP *mcp, uint8_t address)
@@ -74,6 +146,9 @@ void MCP_setup(MCP *mcp, uint8_t address)
   mcp->_address = address;
 
   MCP_byteWrite(mcp, IOCON, IOCON_INIT);
+  uint8_t ret = MCP_byteRead(mcp, IOCON);
+  printf("%.2x\n", ret);
+
   //        MCP_byteWrite(mcp, IOCON, 0);
 
   mcp->_modeCache = 0xFFFF;   // Default I/O mode is all input, 0xFFFF
@@ -82,7 +157,7 @@ void MCP_setup(MCP *mcp, uint8_t address)
   mcp->_invertCache = 0x0000; // Default input inversion state is not inverted, 0x0000
 
   MCP_wordWrite(mcp, IODIRA, 0x0);
-  //MCP_wordWrite(mcp, GPIOA, 0xff);
+  // MCP_wordWrite(mcp, GPIOA, 0xff);
   MCP_wordWrite(mcp, GPIOA, 0xbeef);
 
   // exit(1);
@@ -93,33 +168,50 @@ void MCP_setup(MCP *mcp, uint8_t address)
 void MCP_byteWrite(MCP *mcp, uint8_t reg, uint8_t value)
 { // Accept the register and byte
 
+  // sleep_ms(MCPDELAY);
+  delay();
   uint8_t tx_buf[3];
   tx_buf[0] = OPCODEW | (mcp->_address << 1);
   tx_buf[1] = reg;
   tx_buf[2] = value;
 
-    cs_select();
-  spi_write_blocking(spi0, tx_buf, 3);
-    cs_deselect();
+  cs_select();
+
+#ifdef SOFTSPI
+  spi_write(tx_buf, 3);
+#else
+
+  spi_write_blocking(spi0, &tx_buf, 3);
+#endif
+  cs_deselect();
 }
 
 void MCP_wordWrite(MCP *mcp, uint8_t reg, uint16_t value)
 { // Accept the start register and word
 
+  // sleep_ms(MCPDELAY);
+  delay();
   uint8_t tx_buf[4];
   tx_buf[0] = OPCODEW | (mcp->_address << 1);
   tx_buf[1] = reg;
   tx_buf[2] = value & 0xFF;
   tx_buf[3] = (value >> 8) & 0xFF;
 
-    cs_select();
-  spi_write_blocking(spi0, tx_buf, 4);
-    cs_deselect();
+  cs_select();
+
+#ifdef SOFTSPI
+  spi_write(tx_buf, 4);
+#else
+  spi_write_blocking(spi0, &tx_buf, 4);
+#endif
+  cs_deselect();
 }
 
 uint8_t MCP_byteRead(MCP *mcp, uint8_t reg)
 {
 
+  // sleep_ms(MCPDELAY);
+  delay();
   uint8_t tx_buf[3];
   tx_buf[0] = OPCODER | (mcp->_address << 1);
   tx_buf[1] = reg;
@@ -127,20 +219,32 @@ uint8_t MCP_byteRead(MCP *mcp, uint8_t reg)
 
   uint8_t rx_buf[3];
 
-  
-    cs_select();
-    uint8_t n = spi_write_read_blocking(spi0, tx_buf, rx_buf, 3);
-    cs_deselect();
+  cs_select();
+  //   uint8_t n = spi_write_read_blocking(spi0, tx_buf, rx_buf, 3);
+
+#ifdef SOFTSPI
+  spi_write(tx_buf, 2);
+  spi_read(rx_buf, 1);
+#else
+
+  spi_write_blocking(spi0, &tx_buf, 2);
+  spi_read_blocking(spi0, 0, &rx_buf, 1);
+#endif
+  cs_deselect();
+
+  //  uint8_t recv = rx_buf[2];
+  uint8_t recv = rx_buf[0];
 
   //  printf("%d\n",n);
   //  printf("%2x %2x %2x\n",rx_buf[0],rx_buf[1],rx_buf[2]);
-    uint8_t recv = rx_buf[2];
+  //
   return recv;
 }
 
 uint16_t MCP_wordRead(MCP *mcp, uint8_t reg)
 {
-
+  //  sleep_ms(MCPDELAY);
+  delay();
   uint16_t value = 0;
   uint8_t tx_buf[4];
   tx_buf[0] = OPCODER | (mcp->_address << 1);
@@ -150,13 +254,24 @@ uint16_t MCP_wordRead(MCP *mcp, uint8_t reg)
 
   uint8_t rx_buf[sizeof tx_buf];
 
-    cs_select();
-  uint8_t n = spi_write_read_blocking(spi0, tx_buf, rx_buf, 4);
-    cs_deselect();
+  cs_select();
+  // uint8_t n = spi_write_read_blocking(spi0, tx_buf, rx_buf, 4);
 
-  value |= rx_buf[2];
+#ifdef SOFTSPI
+  spi_write(tx_buf, 2);
+  spi_read(rx_buf, 2);
+#else
 
-  value |= (rx_buf[3] << 8);
+  spi_write_blocking(spi0, &tx_buf, 2);
+  spi_read_blocking(spi0, 0, &rx_buf, 2);
+#endif
+  cs_deselect();
+
+  value |= rx_buf[0];
+  value |= (rx_buf[1] << 8);
+
+  // value |= rx_buf[2];
+  // value |= (rx_buf[3] << 8);
 
   return value;
 }
@@ -191,7 +306,6 @@ void MCP_maskpinMode(MCP *mcp, uint16_t mask, uint8_t mode)
   else
     mcp->_modeCache = (mcp->_modeCache & ~mask) | (0 & mask);
 
-      
   MCP_wordWrite(mcp, IODIRA, mcp->_modeCache);
 }
 

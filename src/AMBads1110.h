@@ -32,6 +32,6 @@ typedef struct {
 
 void _AMBads1110_init(AMBads1110_t* self, MI2C* i2c, uint8_t, uint16_t);
 uint16_t _AMBads1110_setconfig(AMBads1110_t* self);
-uint16_t _AMBads1110_read(AMBads1110_t* self, float*);
+uint16_t _AMBads1110_read(AMBads1110_t* self, float*, uint8_t*);
 
 #endif

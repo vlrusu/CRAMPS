@@ -34,7 +34,7 @@ const int PIN_CS = 5;
 #define PIN_MISO 4
 
 #define PIN_SCK 6
-#define PIN_MOSI 7
+#define PIN_MOSI 3
 
 #define NADDR 3
 
@@ -69,6 +69,34 @@ clock_t clock()
   return (clock_t)time_us_64() / 10000;
 }
 
+static inline void delay()
+{
+
+  asm volatile("nop \n nop \n nop \n nop \n nop");
+  asm volatile("nop \n nop \n nop \n nop \n nop");
+
+asm volatile("nop \n nop \n nop \n nop \n nop");
+
+
+  for (int i = 0; i < 40; i++)
+  {
+
+    __asm volatile("nop\n");
+  }
+}
+
+static inline void delay2()
+{
+
+ // asm volatile("nop \n nop \n nop \n nop \n nop");
+
+  for (int i = 0; i < 10; i++)
+  {
+
+    __asm volatile("nop\n");
+  }
+}
+
 void recover1()
 {
 
@@ -82,7 +110,7 @@ void recover1()
 void initialization()
 {
 
-  //printf("begin\n");
+  // printf("begin\n");
 
   // setup MCPs for cramps
   for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
@@ -118,7 +146,7 @@ void initialization()
   printf("%d\n", retc);
 
   int ncr = scan();
-  printf("Number of cramps: %d\n",ncr/2);
+  printf("Number of cramps: %d\n", ncr / 2);
   for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
   {
     for (int iaddr = 0; iaddr < NADDR; iaddr++)
@@ -126,17 +154,41 @@ void initialization()
       if (crampMask[imcp][iaddr] != 0)
       {
 
-        _AMBads1110_init(&adc[NADDR * imcp + iaddr], &mi2c_cramps[imcp], I2CADDRESS[iaddr], crampMask[imcp][iaddr]);
-        uint16_t ret = _AMBads1110_setconfig(&adc[NADDR * imcp + iaddr]);
-        printf ("%d ",ret);
+        uint8_t adcindex = NADDR * imcp + iaddr;
+        _AMBads1110_init(&adc[adcindex], &mi2c_cramps[imcp], I2CADDRESS[iaddr], crampMask[imcp][iaddr]);
+        uint16_t ret = _AMBads1110_setconfig(&adc[adcindex]);
+        printf("%d ", ret);
+
+        uint8_t tmpconfigs[24];
+        float tmpcurrents[24];
+        uint8_t ncramps = adc[adcindex]._nCramps;
+        _AMBads1110_read(&adc[adcindex], &tmpcurrents, &tmpconfigs);
+
+        for (int ich = 0; ich < ncramps; ich++)
+        {
+          //             printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr==1?0:1, tmpcurrents[ich]);
+          printf(" %.2x ", tmpconfigs[ich]);
+
+          if ((tmpconfigs[ich] & adc[adcindex].config & 0x7f) != (adc[adcindex].config & 0x7f)) // ignore the ready bit
+          {
+            printf("Cramp defective or AMB defective in slot, removing %d\n", adcindex);
+            adc[adcindex]._nCramps--;
+            int newmask = findNthSetBitAndFlip(adc[adcindex]._addrMask, ich + 1);
+            if (newmask != -1)
+            {
+              adc[adcindex]._addrMask = newmask;
+            }
+            else
+              printf("Bit not found in mask, this is so baaaaad...\n");
+          }
+        }
+        printf("\n");
       }
     }
   }
-  printf("\n");
 
   zNumberMap();
 
-  
   printf("Initialization complete\n");
 }
 
@@ -170,8 +222,6 @@ int scan()
   return ncramps;
 }
 
-
-
 int zNumberMap()
 {
 
@@ -204,6 +254,8 @@ int zNumberMap()
   }
 }
 
+//#define SOFTSPI
+
 int main(int argc, char *argv[])
 {
 
@@ -213,16 +265,33 @@ int main(int argc, char *argv[])
 
   sleep_ms(1000);
 
-  spi_init(spi0, 5000000);
-  spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+//gpio_init_mask(0xffff);  
+//gpio_put_all(1);
 
   gpio_init(POWERPIN);
   gpio_set_dir(POWERPIN, GPIO_OUT);
   gpio_put(POWERPIN, 0);
 
+#ifndef SOFTSPI
+  spi_init(spi0, 10000000);
+  spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
   gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
   gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
   gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
+#else
+  gpio_init(PIN_SCK);
+  gpio_set_dir(PIN_SCK, GPIO_OUT);
+  gpio_put(PIN_SCK, 0);
+  gpio_init(PIN_MOSI);
+  gpio_set_dir(PIN_MOSI, GPIO_OUT);
+  gpio_set_pulls(PIN_MOSI,true,false);
+  gpio_put(PIN_MOSI, 0);
+  gpio_init(PIN_MISO);
+  gpio_set_dir(PIN_MISO, GPIO_IN);
+#endif
+  gpio_set_drive_strength(PIN_SCK, GPIO_DRIVE_STRENGTH_12MA);
+  gpio_set_drive_strength(PIN_MOSI, GPIO_DRIVE_STRENGTH_12MA);
+
   //  gpio_set_function(PIN_CS, GPIO_FUNC_SPI);
   // Make the SPI pins available to picotool
   // bi_decl(bi_3pins_with_func(PIN_MISO, PIN_MOSI, PIN_SCK, GPIO_FUNC_SPI));
@@ -230,7 +299,7 @@ int main(int argc, char *argv[])
   // Chip select is active-low, so we'll initialise it to a driven-high state
   gpio_init(PIN_CS);
   gpio_set_dir(PIN_CS, GPIO_OUT);
-  gpio_put(PIN_CS, 0);
+  gpio_put(PIN_CS, 1);
   // Make the CS pin available to picotool
   // bi_decl(bi_1pin_with_name(PIN_CS, "SPI CS"));
 
@@ -298,7 +367,6 @@ int main(int argc, char *argv[])
           }
         }
       }
-      
 
       for (int i = 0; i < 48; i++)
       {
@@ -319,6 +387,21 @@ int main(int argc, char *argv[])
 
         MCP_setup(&crampMCP[imcp], imcp);
       }
+
+      for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
+      {
+
+        uint16_t test = MCP_wordRead(&crampMCP[imcp], GPIOA);
+        //	uint16_t test = MCP_byteRead(&crampMCP[imcp], IOCON);
+        printf("%04x ", test);
+      }
+
+      printf("\n");
+    }
+
+    else if (input == 'U')
+    {
+      printf("Testing MCPs\n");
 
       for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
       {
@@ -367,47 +450,60 @@ int main(int argc, char *argv[])
     if (startACQ)
     {
 
-      int n = 0;
+      // for (int i = 0; i < 2000; i++)
+      // {
+      //   gpio_put(PIN_MOSI, 1);
+      //   //gpio_put(PIN_SCK, 1);
+      //   //delay();
+      //   //gpio_put(PIN_SCK, 1);
+      //   delay();
+      //   gpio_put(PIN_MOSI, 0);
+      //   delay();
+        
+      // }
 
-      countloop++;
+ 
+          int n = 0;
 
-      uint8_t ncramps = 0;
-      clock_t curTime = clock();
-      double thisTime = (double)(curTime - startAcqTime) / CLOCKS_PER_SEC;
-      printf("%.8f ", thisTime);  
+          countloop++;
 
-      for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
-      {
-        for (int iaddr = 0; iaddr < NADDR; iaddr++)
-        {
-          if (crampMask[imcp][iaddr] != 0)
+          uint8_t ncramps = 0;
+          clock_t curTime = clock();
+          double thisTime = (double)(curTime - startAcqTime) / CLOCKS_PER_SEC;
+          printf("%.8f ", thisTime);
+
+          for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
           {
-            float tmpcurrents[24];
-            uint8_t adcindex = NADDR * imcp + iaddr;
-            ncramps = adc[adcindex]._nCramps;
-            _AMBads1110_read(&adc[adcindex], &tmpcurrents);
-
-            for (int ich = 0; ich < ncramps; ich++)
+            for (int iaddr = 0; iaddr < NADDR; iaddr++)
             {
-              //             printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr==1?0:1, tmpcurrents[ich]);
-              printf(" %7.5f ", tmpcurrents[ich]);
-            }
-            //           sleep_ms(1000);
-          }
-        }
-      }
+              if (crampMask[imcp][iaddr] != 0)
+              {
+                float tmpcurrents[24];
+                uint8_t tmpconfigs[24];
+                uint8_t adcindex = NADDR * imcp + iaddr;
+                ncramps = adc[adcindex]._nCramps;
+                _AMBads1110_read(&adc[adcindex], &tmpcurrents, &tmpconfigs);
 
-      
-      printf("\n");
-/*
-      if (countloop % 100 == 0)
-      {
-        clock_t endTime = clock();
-        double executionTime = (double)(endTime - startTime) / CLOCKS_PER_SEC;
-        printf("%.8f sec\n", executionTime);
-        startTime = clock();
-      }
-      */
+                for (int ich = 0; ich < ncramps; ich++)
+                {
+                  //             printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr==1?0:1, tmpcurrents[ich]);
+                  printf(" %7.5f ", tmpcurrents[ich]);
+                }
+                //           sleep_ms(1000);
+              }
+            }
+          }
+
+          printf("\n");
+      //     /*
+      //           if (countloop % 100 == 0)
+      //           {
+      //             clock_t endTime = clock();
+      //             double executionTime = (double)(endTime - startTime) / CLOCKS_PER_SEC;
+      //             printf("%.8f sec\n", executionTime);
+      //             startTime = clock();
+      //           }
+      //           */
     }
   }
 

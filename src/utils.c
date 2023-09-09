@@ -69,4 +69,30 @@ char *getLine(bool fullDuplex, char lineBreak)
 };
 
 
+int findNthSetBitAndFlip(uint16_t mask, int n) {
+    int count = 0;
+    int position = -1; // Initialize to -1 to indicate not found
+
+    // Iterate through each bit of the mask
+    for (int i = 0; i < 16; i++) {
+        if ((mask & (1 << i)) != 0) {
+            count++;
+            if (count == n) {
+                position = i; // Found the nth set bit
+                break;
+            }
+        }
+    }
+
+    if (position != -1) {
+        // Flip the nth set bit
+        mask ^= (1 << position);
+        return mask;
+    } else {
+        // If the nth set bit is not found, return an error value (e.g., -1)
+        return -1;
+    }
+};
+
+
 
