@@ -146,8 +146,8 @@ void MCP_setup(MCP *mcp, uint8_t address)
   mcp->_address = address;
 
   MCP_byteWrite(mcp, IOCON, IOCON_INIT);
-  uint8_t ret = MCP_byteRead(mcp, IOCON);
-  printf("%.2x\n", ret);
+  //uint8_t ret = MCP_byteRead(mcp, IOCON);
+  //printf("%.2x\n", ret);
 
   //        MCP_byteWrite(mcp, IOCON, 0);
 

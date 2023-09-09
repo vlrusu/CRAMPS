@@ -25,6 +25,7 @@ typedef struct {
   MI2C*  _mi2c;
   uint8_t _i2caddress;
   uint16_t _addrMask;
+  uint16_t _flipmask;
   uint8_t _nCramps;
   
 } AMBads1110_t;

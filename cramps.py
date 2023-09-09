@@ -6,7 +6,8 @@ import math
 import sys
 import copy
 import os
-import matplotlib.pyplot as plt
+#import python-matplotlib
+#import python-matplotlib.pyplot as plt
 import numpy as np
 import argparse
 import serial
@@ -115,7 +116,7 @@ if __name__ == '__main__':
     if (tmp != 'beef beef beef beef'):
         print("MCPs not initialized properly\n")
         print(tmp)
-        exit()
+#        exit()
         
         
     #now initialize
@@ -126,15 +127,8 @@ if __name__ == '__main__':
         print(tmp)
         exit()
     
-    ncramps = ser.readline().decode('ascii').strip().split(":")[1]
-    print("You have " + ncramps + " cramps installed")
-    
-    tmp = ser.readline().decode('ascii').strip().split()
-    for i in range(len(tmp)):
-        if (int(tmp[i])!=0):
-            print("AMBADC1110 not initialized correctly")
-            
-    print (ser.readline().decode('ascii').strip())
+    while (tmp != "Initialization complete"):
+        tmp=ser.readline().decode('ascii').strip()
     
     #if a scan is required stop at that
     if (args.scan):
@@ -160,7 +154,7 @@ if __name__ == '__main__':
             break
         tmp.append(line)
 
-    SCANFILE = SCANFILE + "_" + formatted_datetime+".txt"
+    SCANFILE = SCANFILE + "_" + deviceid+"_"+ formatted_datetime+".txt"
     with open(SCANFILE, 'w') as file:
         for i in range(len(tmp)):
             file.write(tmp[i] + "\n")
@@ -171,7 +165,7 @@ if __name__ == '__main__':
     #now start acquisition for the desired number of samples
     nsample = int(args.nsamples)
     
-    DATAFILE = DATAFILE + "_" + formatted_datetime + ".dat"
+    DATAFILE = DATAFILE + "_" + deviceid+"_"+formatted_datetime + ".dat"
     file = open(DATAFILE, "w")
     count = 0
     ser.write(b'A')

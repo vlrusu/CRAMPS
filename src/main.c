@@ -28,7 +28,7 @@
 
 const int PIN_CS = 5;
 
-#define DEVICEID 0xA0
+#define DEVICEID 0xA1
 
 #define POWERPIN 0
 #define PIN_MISO 4
@@ -75,8 +75,7 @@ static inline void delay()
   asm volatile("nop \n nop \n nop \n nop \n nop");
   asm volatile("nop \n nop \n nop \n nop \n nop");
 
-asm volatile("nop \n nop \n nop \n nop \n nop");
-
+  asm volatile("nop \n nop \n nop \n nop \n nop");
 
   for (int i = 0; i < 40; i++)
   {
@@ -88,7 +87,7 @@ asm volatile("nop \n nop \n nop \n nop \n nop");
 static inline void delay2()
 {
 
- // asm volatile("nop \n nop \n nop \n nop \n nop");
+  // asm volatile("nop \n nop \n nop \n nop \n nop");
 
   for (int i = 0; i < 10; i++)
   {
@@ -164,45 +163,90 @@ void initialization()
         uint8_t ncramps = adc[adcindex]._nCramps;
         _AMBads1110_read(&adc[adcindex], &tmpcurrents, &tmpconfigs);
 
+        uint16_t toremove = 0;
         for (int ich = 0; ich < ncramps; ich++)
         {
           //             printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr==1?0:1, tmpcurrents[ich]);
-          printf(" %.2x ", tmpconfigs[ich]);
+          printf("TEST1: %d %d %d %.2x \n", imcp, iaddr, ich, tmpconfigs[ich]);
 
           if ((tmpconfigs[ich] & adc[adcindex].config & 0x7f) != (adc[adcindex].config & 0x7f)) // ignore the ready bit
           {
-            printf("Cramp defective or AMB defective in slot, removing %d\n", adcindex);
-            adc[adcindex]._nCramps--;
-            int newmask = findNthSetBitAndFlip(adc[adcindex]._addrMask, ich + 1);
-            if (newmask != -1)
-            {
-              adc[adcindex]._addrMask = newmask;
-            }
-            else
-              printf("Bit not found in mask, this is so baaaaad...\n");
+            toremove |= (1 << ich);
           }
         }
-        printf("\n");
+        if (toremove > 0)
+        {
+          // find the mask to flip
+          uint16_t flipmask = 0;
+
+          //     printf("TEST: %.4x %.4x\n", toremove, adc[adcindex]._addrMask);
+          int removing = countSetBits(toremove);
+          for (int i = 0; i < removing; i++)
+          {
+
+            int ibit = findNthSetBit(toremove, i + 1);
+            int ibitmask = findNthSetBit(adc[adcindex]._addrMask, ibit + 1);
+            if (ibit != -1)
+            {
+              flipmask |= (1 << ibitmask);
+            }
+            else
+              printf("Bit removal failed, this is so baaaaad... %d %.4x\n", i, adc[adcindex]._addrMask);
+
+            printf("\nCramp defective or AMB defective in slot, removing %d %d %d %.4x\n", imcp, iaddr, i + 1, adc[adcindex]._addrMask);
+            adc[adcindex]._nCramps--;
+          }
+          printf("TEST2: %.4x %.4x\n", adc[adcindex]._addrMask, flipmask);
+          adc[adcindex]._addrMask = adc[adcindex]._addrMask & (~flipmask);
+          printf("TEST3: %.4x %.4x\n", adc[adcindex]._addrMask, flipmask);
+          adc[adcindex]._flipmask = flipmask;
+        }
       }
+      printf("\n");
     }
   }
 
   zNumberMap();
 
-  printf("Initialization complete\n");
-}
+  // final check
 
-int countSetBits(uint16_t mask)
-{
-  int count = 0;
-
-  while (mask)
+  for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
   {
-    count += mask & 1;
-    mask >>= 1;
+    for (int iaddr = 0; iaddr < NADDR; iaddr++)
+    {
+
+      uint8_t adcindex = NADDR * imcp + iaddr;
+
+      if (adc[adcindex]._addrMask != 0)
+      {
+
+        //       _AMBads1110_init(&adc[adcindex], &mi2c_cramps[imcp], I2CADDRESS[iaddr], crampMask[imcp][iaddr]);
+        uint16_t ret = _AMBads1110_setconfig(&adc[adcindex]);
+
+        uint8_t tmpconfigs[24];
+        float tmpcurrents[24];
+        uint8_t ncramps = adc[adcindex]._nCramps;
+        _AMBads1110_read(&adc[adcindex], &tmpcurrents, &tmpconfigs);
+
+        uint16_t toremove = 0;
+        for (int ich = 0; ich < ncramps; ich++)
+        {
+          printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr == 1 ? 0 : 1, tmpcurrents[ich]);
+
+          if ((tmpconfigs[ich] & adc[adcindex].config & 0x7f) != (adc[adcindex].config & 0x7f))
+          { // ignore the ready bit
+            printf("WTF %d %d %d %.4x %.2x %d\n", imcp, iaddr, ich, adc[adcindex]._addrMask, tmpconfigs[ich], findNthSetBit(adc[adcindex]._flipmask, ich + 1));
+
+            // try again:
+            //  _AMBads1110_read(&adc[adcindex], &tmpcurrents, &tmpconfigs);
+            //  printf("WTF2 %d %d %d %.4x %.2x\n",  imcp, iaddr, adc[adcindex]._addrMask,tmpconfigs[ich]);
+          }
+        }
+      }
+    }
   }
 
-  return count;
+  printf("Initialization complete\n");
 }
 
 int scan()
@@ -254,7 +298,7 @@ int zNumberMap()
   }
 }
 
-//#define SOFTSPI
+// #define SOFTSPI
 
 int main(int argc, char *argv[])
 {
@@ -265,15 +309,15 @@ int main(int argc, char *argv[])
 
   sleep_ms(1000);
 
-//gpio_init_mask(0xffff);  
-//gpio_put_all(1);
+  // gpio_init_mask(0xffff);
+  // gpio_put_all(1);
 
   gpio_init(POWERPIN);
   gpio_set_dir(POWERPIN, GPIO_OUT);
   gpio_put(POWERPIN, 0);
 
 #ifndef SOFTSPI
-  spi_init(spi0, 10000000);
+  spi_init(spi0, 5000000);
   spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
   gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
   gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
@@ -284,7 +328,7 @@ int main(int argc, char *argv[])
   gpio_put(PIN_SCK, 0);
   gpio_init(PIN_MOSI);
   gpio_set_dir(PIN_MOSI, GPIO_OUT);
-  gpio_set_pulls(PIN_MOSI,true,false);
+  gpio_set_pulls(PIN_MOSI, true, false);
   gpio_put(PIN_MOSI, 0);
   gpio_init(PIN_MISO);
   gpio_set_dir(PIN_MISO, GPIO_IN);
@@ -347,6 +391,7 @@ int main(int argc, char *argv[])
       //	  scan();
       int Slot[48][2];
       memset(Slot, -1, 48 * 2 * sizeof(int));
+      int finalncramps = 0;
       for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
       {
 
@@ -359,6 +404,7 @@ int main(int argc, char *argv[])
           for (int ich = 0; ich < ncramps; ich++)
           {
 
+            finalncramps++;
             // this assumes address 2 (0x4A, second in the array) is at bottom
             if (iaddr == 1)
               Slot[zNumbers[imcp][iaddr][ich]][1] = I2CADDRESS[iaddr];
@@ -375,6 +421,7 @@ int main(int argc, char *argv[])
         if (Slot[i][1] >= 0)
           printf("Slot %d has a top address at %.2x (%d)\n", i, Slot[i][1], (Slot[i][1] & 0x7));
       }
+      printf("%d cramp channels present and functional\n", finalncramps);
       printf("Scanning complete\n");
     }
 
@@ -459,42 +506,41 @@ int main(int argc, char *argv[])
       //   delay();
       //   gpio_put(PIN_MOSI, 0);
       //   delay();
-        
+
       // }
 
- 
-          int n = 0;
+      int n = 0;
 
-          countloop++;
+      countloop++;
 
-          uint8_t ncramps = 0;
-          clock_t curTime = clock();
-          double thisTime = (double)(curTime - startAcqTime) / CLOCKS_PER_SEC;
-          printf("%.8f ", thisTime);
+      uint8_t ncramps = 0;
+      clock_t curTime = clock();
+      double thisTime = (double)(curTime - startAcqTime) / CLOCKS_PER_SEC;
+      printf("%.8f ", thisTime);
 
-          for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
+      for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
+      {
+        for (int iaddr = 0; iaddr < NADDR; iaddr++)
+        {
+          if (crampMask[imcp][iaddr] != 0)
           {
-            for (int iaddr = 0; iaddr < NADDR; iaddr++)
+            float tmpcurrents[24];
+            uint8_t tmpconfigs[24];
+            uint8_t adcindex = NADDR * imcp + iaddr;
+            ncramps = adc[adcindex]._nCramps;
+            _AMBads1110_read(&adc[adcindex], &tmpcurrents, &tmpconfigs);
+
+            for (int ich = 0; ich < ncramps; ich++)
             {
-              if (crampMask[imcp][iaddr] != 0)
-              {
-                float tmpcurrents[24];
-                uint8_t tmpconfigs[24];
-                uint8_t adcindex = NADDR * imcp + iaddr;
-                ncramps = adc[adcindex]._nCramps;
-                _AMBads1110_read(&adc[adcindex], &tmpcurrents, &tmpconfigs);
-
-                for (int ich = 0; ich < ncramps; ich++)
-                {
-                  //             printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr==1?0:1, tmpcurrents[ich]);
-                  printf(" %7.5f ", tmpcurrents[ich]);
-                }
-                //           sleep_ms(1000);
-              }
+              //             printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr==1?0:1, tmpcurrents[ich]);
+              printf(" %7.5f ", tmpcurrents[ich]);
             }
+            //           sleep_ms(1000);
           }
+        }
+      }
 
-          printf("\n");
+      printf("\n");
       //     /*
       //           if (countloop % 100 == 0)
       //           {

@@ -7,6 +7,7 @@ void _AMBads1110_init(AMBads1110_t *self, MI2C *mi2c, uint8_t address, uint16_t 
   self->_mi2c = mi2c;
   self->_i2caddress = address;
   self->_addrMask = addressMask;
+  self->_flipmask = 0;
 
   uint8_t count = 0;
   for (int i = 0; i < 16; i++)

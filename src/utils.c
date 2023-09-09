@@ -95,4 +95,39 @@ int findNthSetBitAndFlip(uint16_t mask, int n) {
 };
 
 
+int findNthSetBit(uint16_t mask, int n) {
+    int count = 0;
+    int position = -1; // Initialize to -1 to indicate not found
+
+    // Iterate through each bit of the mask
+    for (int i = 0; i < 16; i++) {
+        if ((mask & (1 << i)) != 0) {
+            count++;
+            if (count == n) {
+                position = i; // Found the nth set bit
+                break;
+            }
+        }
+    }
+
+    return position;
+
+   
+    
+};
+
+
+
+int countSetBits(uint16_t mask)
+{
+  int count = 0;
+
+  while (mask)
+  {
+    count += mask & 1;
+    mask >>= 1;
+  }
+
+  return count;
+};
 
