@@ -132,6 +132,12 @@ int countSetBits(uint16_t mask)
 };
 
 
+inline static void swap(int* a, int* b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+};
+
 void reorderArrays(int arr1[], int arr2[], int size) {
     for (int i = 0; i < size - 1; i++) {
         int minIndex = i;
@@ -141,9 +147,12 @@ void reorderArrays(int arr1[], int arr2[], int size) {
             }
         }
         if (minIndex != i) {
+	 
             swap(&arr1[i], &arr1[minIndex]);
-            swap(&arr2[i], &arr2[minIndex]);
+	    // swap(&arr2[i], &arr2[minIndex]);
         }
+
+	 printf("TEST %d %d %d %d\n",minIndex, i,arr1[i],arr1[minIndex]);
     }
 }
 

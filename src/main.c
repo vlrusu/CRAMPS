@@ -474,6 +474,7 @@ int main(int argc, char *argv[])
       startACQ = 1;
       startAcqTime = clock();
       memset(crampList, -1, 2*48 * sizeof(int));
+      int reorderedCrampList[2*48];
       int crampCount = 0;
       printf("LOGGING: Starting acquisition ");
       for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
@@ -487,7 +488,7 @@ int main(int argc, char *argv[])
 
             for (int ich = 0; ich < ncramps; ich++)
             {
-              //printf("%d_%d ", zNumbers[imcp][iaddr][ich], iaddr == 1 ? 1 : 0);
+              printf("%d_%d ", zNumbers[imcp][iaddr][ich], iaddr == 1 ? 1 : 0);
               // printf(" %7.5f ", tmpcurrents[ich]);
               crampList[crampCount] = 2*zNumbers[imcp][iaddr][ich] + (iaddr == 1 ? 1 : 0);
               crampCount++;
@@ -497,6 +498,18 @@ int main(int argc, char *argv[])
         }
       }
       printf("\n");
+      
+      memcpy(reorderedCrampList, crampList, sizeof(int)*crampCount );
+      if (crampCount>0) {
+	reorderArrays(reorderedCrampList, crampList, crampCount);
+      }
+
+
+      for (int i = 0 ; i < crampCount; i++){
+	printf("%d %d %d \n",i,crampList[i],reorderedCrampList[i]);
+	
+      }
+      
     }
 
     if (startACQ)
