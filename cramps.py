@@ -33,6 +33,7 @@ def list_usb_serial_devices(device_type):
 
 SCANFILE = "input"
 DATAFILE = "crampdata"
+LOGFILE = "log"
 
 if __name__ == '__main__':
 
@@ -94,6 +95,9 @@ if __name__ == '__main__':
         exit()
         
     
+    LOGFILE = LOGFILE + "_" + deviceid+"_"+ formatted_datetime+".log"
+    log = open(LOGFILE, "w")
+    
     #check whether to power off
     if (args.poweroff):
         ser.write(b'O')
@@ -114,8 +118,8 @@ if __name__ == '__main__':
     ser.readline().decode('ascii')
     tmp = ser.readline().decode('ascii').strip()
     if (tmp != 'beef beef beef beef'):
-        print("MCPs not initialized properly\n")
-        print(tmp)
+        log.write("MCPs not initialized properly\n")
+        log.write(tmp)
 #        exit()
         
         
@@ -123,8 +127,8 @@ if __name__ == '__main__':
     ser.write(b'I')
     tmp = ser.readline().decode('ascii').strip()
     if (tmp != '0 0 0 0') :
-        print("MCPs not returning retc correctly\n")
-        print(tmp)
+        log.write("MCPs not returning retc correctly\n")
+        log.write(tmp)
         exit()
     
     while (tmp != "Initialization complete"):
@@ -137,7 +141,7 @@ if __name__ == '__main__':
         ser.readline()
         while(1):
             line = ser.readline().decode('ascii').strip()
-            print(line)
+            log.write(line)
         
             if (line == "Scanning complete"):
                 break
@@ -169,10 +173,15 @@ if __name__ == '__main__':
     file = open(DATAFILE, "w")
     count = 0
     ser.write(b'A')
-    while count<nsample+1:
+    line = ser.readline().decode('ascii')
+    log.write(line)
+    while count<nsample:
         line = ser.readline().decode('ascii')
         file.write(line)
         count = count+1
     file.close()
     ser.write(b'R')
+    
+    
+    log.close()
         

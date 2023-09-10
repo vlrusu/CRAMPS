@@ -131,3 +131,19 @@ int countSetBits(uint16_t mask)
   return count;
 };
 
+
+void reorderArrays(int arr1[], int arr2[], int size) {
+    for (int i = 0; i < size - 1; i++) {
+        int minIndex = i;
+        for (int j = i + 1; j < size; j++) {
+            if (arr2[j] < arr2[minIndex]) {
+                minIndex = j;
+            }
+        }
+        if (minIndex != i) {
+            swap(&arr1[i], &arr1[minIndex]);
+            swap(&arr2[i], &arr2[minIndex]);
+        }
+    }
+}
+

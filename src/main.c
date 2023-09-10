@@ -63,6 +63,7 @@ int enabledSlots[MAX_LINE_LENGTH];
 uint16_t crampMask[4][NADDR];
 
 int zNumbers[4][NADDR][16]; // there are maximum 14 cramps on any given MCP
+int crampList[2*48];
 
 clock_t clock()
 {
@@ -472,6 +473,8 @@ int main(int argc, char *argv[])
 
       startACQ = 1;
       startAcqTime = clock();
+      memset(crampList, -1, 2*48 * sizeof(int));
+      int crampCount = 0;
       printf("LOGGING: Starting acquisition ");
       for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
       {
@@ -484,8 +487,10 @@ int main(int argc, char *argv[])
 
             for (int ich = 0; ich < ncramps; ich++)
             {
-              printf("%d_%d ", zNumbers[imcp][iaddr][ich], iaddr == 1 ? 1 : 0);
+              //printf("%d_%d ", zNumbers[imcp][iaddr][ich], iaddr == 1 ? 1 : 0);
               // printf(" %7.5f ", tmpcurrents[ich]);
+              crampList[crampCount] = 2*zNumbers[imcp][iaddr][ich] + (iaddr == 1 ? 1 : 0);
+              crampCount++;
             }
             //           sleep_ms(1000);
           }
@@ -517,7 +522,9 @@ int main(int argc, char *argv[])
       clock_t curTime = clock();
       double thisTime = (double)(curTime - startAcqTime) / CLOCKS_PER_SEC;
       printf("%.8f ", thisTime);
-
+      float finalcurrents[48];
+      int currentArrayIndex = 0;
+      memset(finalcurrents, -1, 48 * sizeof(float));
       for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
       {
         for (int iaddr = 0; iaddr < NADDR; iaddr++)
@@ -529,12 +536,14 @@ int main(int argc, char *argv[])
             uint8_t adcindex = NADDR * imcp + iaddr;
             ncramps = adc[adcindex]._nCramps;
             _AMBads1110_read(&adc[adcindex], &tmpcurrents, &tmpconfigs);
+            memcpy(finalcurrents+currentArrayIndex, tmpcurrents, sizeof(float)*ncramps );
+            currentArrayIndex += ncramps;
 
-            for (int ich = 0; ich < ncramps; ich++)
-            {
-              //             printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr==1?0:1, tmpcurrents[ich]);
-              printf(" %7.5f ", tmpcurrents[ich]);
-            }
+            // for (int ich = 0; ich < ncramps; ich++)
+            // {
+            //   //             printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr==1?0:1, tmpcurrents[ich]);
+            //   printf(" %7.5f ", tmpcurrents[ich]);
+            // }
             //           sleep_ms(1000);
           }
         }
