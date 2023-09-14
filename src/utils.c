@@ -139,20 +139,31 @@ inline static void swap(int* a, int* b) {
 };
 
 void reorderArrays(int arr1[], int arr2[], int size) {
-    for (int i = 0; i < size - 1; i++) {
-        int minIndex = i;
+
+  int *temp = (int *)malloc(size * sizeof(int));
+
+  if (temp == NULL) {
+    printf(stderr, "Memory allocation failed.\n");
+    exit(1);
+  }
+
+  memcpy(temp, arr2, sizeof(int)*size);
+  
+  for (int i = 0; i < size - 1; i++) {
+    int minIndex = i;
         for (int j = i + 1; j < size; j++) {
-            if (arr2[j] < arr2[minIndex]) {
+            if (temp[j] < temp[minIndex]) {
                 minIndex = j;
             }
         }
         if (minIndex != i) {
 	 
             swap(&arr1[i], &arr1[minIndex]);
-	    // swap(&arr2[i], &arr2[minIndex]);
+	     swap(&temp[i], &temp[minIndex]);
         }
 
-	 printf("TEST %d %d %d %d\n",minIndex, i,arr1[i],arr1[minIndex]);
     }
+
+   free(temp);
 }
 

@@ -29,7 +29,19 @@ def list_usb_serial_devices(device_type):
     
     return usb_serial_devices
 
-
+def count_different_bits(word1, word2):
+    # Perform a bitwise XOR to find the differing bits
+    xor_result = word1 ^ word2
+    
+    # Initialize a count for differing bits
+    count = 0
+    
+    # Count the set bits in the XOR result
+    while xor_result:
+        count += xor_result & 1
+        xor_result >>= 1
+    
+    return count
 
 SCANFILE = "input"
 DATAFILE = "crampdata"
@@ -48,7 +60,7 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--address",
                         help="Address of device", required=True)
     parser.add_argument("-n", "--nsamples",
-                        help="Number of required data poits to take", required=False, default = 0)
+                        help="Number of required data points to take", required=False, default = 0)
 
 
     parser.add_argument("-o", "--poweroff",action="store_true",
@@ -82,6 +94,9 @@ if __name__ == '__main__':
     serport = 0
     deviceid = args.address
     for ser in sers:
+
+        ser.write(b'R')
+        ser.readline()
         
         ser.write(b'D')
     
@@ -116,12 +131,21 @@ if __name__ == '__main__':
     #then do a MCP test
     ser.write(b'T') 
     ser.readline().decode('ascii')
-    tmp = ser.readline().decode('ascii').strip()
-    if (tmp != 'beef beef beef beef'):
-        log.write("MCPs not initialized properly\n")
-        log.write(tmp)
-#        exit()
-        
+    tmp = ser.readline().decode('ascii').strip().split()
+
+    for imcp in range(len(tmp)):
+        mcpnumber = int(tmp[imcp], 16)
+
+        diff_bits = count_different_bits(mcpnumber, 0xbeef)
+#        print(hex(mcpnumber)+ " "+hex(0xbeef)+ " "+str(diff_bits))
+        if (diff_bits > 0):
+            if  (diff_bits<6):
+                print("MCPs not initialized properly, but the program will continue, since only "+ str(diff_bits) + " bits are different " + str(imcp) + " " + tmp[imcp]+ " " +"\n")
+                log.write("MCPs not initialized properly, but the program will continue, since only "+ str(diff_bits) + " bits are different " + str(imcp) + " " + tmp[imcp]+ " " +"\n")
+
+            else:
+                print("MCPs not initialized properly and program will stop, since "+ str(diff_bits) + " bits are different " + str(imcp) + " " + tmp[imcp]+ " " +"\n")
+                exit()
         
     #now initialize
     ser.write(b'I')
@@ -142,6 +166,7 @@ if __name__ == '__main__':
         while(1):
             line = ser.readline().decode('ascii').strip()
             log.write(line)
+            print(line)
         
             if (line == "Scanning complete"):
                 break
@@ -173,6 +198,8 @@ if __name__ == '__main__':
     file = open(DATAFILE, "w")
     count = 0
     ser.write(b'A')
+    line = ser.readline().decode('ascii')
+    log.write(line)
     line = ser.readline().decode('ascii')
     log.write(line)
     while count<nsample:

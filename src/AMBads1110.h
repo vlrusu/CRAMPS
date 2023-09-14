@@ -13,8 +13,9 @@
 //sample rates: 0 - 240SPS 1 60SPS 2 30SPS 3 15SPS
 //FS changes accordingly: 2048 8192 16384 32768 
 #define SAMPLERATE 1
+#define GAIN 2
 
-#define AMBADS1110_FS 8192 //16384
+#define AMBADS1110_FS 8192
 #define AMBADS1110_REFV 2.048
 #define AMBADS1110_ADDRESS_CH0 0x4A  // -- 4A = ED2 -- 4D = ED5 
 #define AMBADS1110_ADDRESS_CH1 0x4D  // -- 4A = ED2 -- 4D = ED5 

@@ -18,11 +18,7 @@ void _AMBads1110_init(AMBads1110_t *self, MI2C *mi2c, uint8_t address, uint16_t 
 
   // FIXME
   //  ocbit not set 0x80 no effect on RDY bit continuous conversion mode
-  uint8_t gain = 0;       // default x1
-  uint8_t samplerate = 1; // 16SPS 16 bit
-  uint8_t mode = 1;       // 1 - continuous conversion 0 - one-shot
-  // self->config = 0x80;// | (channel << 5) | (mode << 4) | (samplerate << 2) | (gain) ;
-  self->config = 0x80 | (SAMPLERATE << 2); // 4; //8; //4; //8; //0x8C;      //0 | (channel << 5) | (mode << 4) | (samplerate << 2) | (gain) ;
+  self->config = 0x80 | (SAMPLERATE << 2) | GAIN; 
 }
 
 uint16_t _AMBads1110_setconfig(AMBads1110_t *self)

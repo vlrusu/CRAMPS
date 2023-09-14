@@ -38,6 +38,19 @@ const int PIN_CS = 5;
 
 #define NADDR 3
 
+
+#define POWERUP 'P'
+#define RESET 'R'
+#define POWEROFF 'O'
+#define GETDEVICEID 'D'
+#define SCAN 'S'
+#define TESTMCP 'T'
+#define TESTREADMCP 'U'
+#define INITIALIZE 'I'
+#define ACQUIRE 'A'
+#define POWERCYCLE 'C'
+
+
 // batch 0 has 0x4A at top and 0x4D at bottom
 // batch 1 has 0x4A at top and 0x48 at bottom
 const uint8_t I2CADDRESS[NADDR] = {0x48, 0x4A, 0x4D};
@@ -97,7 +110,7 @@ static inline void delay2()
   }
 }
 
-void recover1()
+void recover()
 {
 
   gpio_put(POWERPIN, 0);
@@ -364,29 +377,35 @@ int main(int argc, char *argv[])
   {
 
     int input = getchar_timeout_us(10);
-    if (input == 'R')
+    if (input == RESET)
     {
       printf("Resetting\n");
       startACQ = 0;
       SlotCounter = 0;
     }
 
-    else if (input == 'P')
+    else if (input == POWERUP)
     {
-      printf("Powering in\n");
+      printf("Powering up\n");
       gpio_put(POWERPIN, 1);
     }
-    else if (input == 'O')
+
+    else if (input == POWERCYCLE)
+    {
+      printf("Pwer cycling\n");
+      recover();
+    }
+    else if (input == POWEROFF)
     {
       printf("Powering off\n");
       gpio_put(POWERPIN, 0);
     }
 
-    else if (input == 'D')
+    else if (input == GETDEVICEID)
     {
       printf("%.2x\n", DEVICEID);
     }
-    else if (input == 'S')
+    else if (input == SCAN)
     {
       printf("Scanning\n");
       //	  scan();
@@ -426,7 +445,7 @@ int main(int argc, char *argv[])
       printf("Scanning complete\n");
     }
 
-    else if (input == 'T')
+    else if (input == TESTMCP)
     {
       printf("Testing MCPs\n");
 
@@ -447,7 +466,7 @@ int main(int argc, char *argv[])
       printf("\n");
     }
 
-    else if (input == 'U')
+    else if (input == TESTREADMCP)
     {
       printf("Testing MCPs\n");
 
@@ -462,13 +481,13 @@ int main(int argc, char *argv[])
       printf("\n");
     }
 
-    else if (input == 'I')
+    else if (input == INITIALIZE)
     {
 
       initialization(); // channelnumber);
     }
 
-    else if (input == 'A')
+    else if (input == ACQUIRE)
     {
 
       startACQ = 1;
@@ -488,9 +507,10 @@ int main(int argc, char *argv[])
 
             for (int ich = 0; ich < ncramps; ich++)
             {
-              printf("%d_%d ", zNumbers[imcp][iaddr][ich], iaddr == 1 ? 1 : 0);
+              //printf("%d_%d ", zNumbers[imcp][iaddr][ich], iaddr == 1 ? 1 : 0);
               // printf(" %7.5f ", tmpcurrents[ich]);
               crampList[crampCount] = 2*zNumbers[imcp][iaddr][ich] + (iaddr == 1 ? 1 : 0);
+	      printf(" %d ",crampList[crampCount]);
               crampCount++;
             }
             //           sleep_ms(1000);
@@ -501,14 +521,15 @@ int main(int argc, char *argv[])
       
       memcpy(reorderedCrampList, crampList, sizeof(int)*crampCount );
       if (crampCount>0) {
-	reorderArrays(reorderedCrampList, crampList, crampCount);
+      	reorderArrays(reorderedCrampList, crampList, crampCount);
       }
 
 
       for (int i = 0 ; i < crampCount; i++){
-	printf("%d %d %d \n",i,crampList[i],reorderedCrampList[i]);
+      	printf(" %d ",reorderedCrampList[i]);
 	
       }
+      printf("\n");      
       
     }
 
@@ -536,8 +557,11 @@ int main(int argc, char *argv[])
       double thisTime = (double)(curTime - startAcqTime) / CLOCKS_PER_SEC;
       printf("%.8f ", thisTime);
       float finalcurrents[48];
+      uint32_t finalconfigs[48];
       int currentArrayIndex = 0;
+      int index = 0;
       memset(finalcurrents, -1, 48 * sizeof(float));
+      memset(finalconfigs, 0, 48 * sizeof(uint32_t));
       for (int imcp = MCPHV0; imcp <= MCPHV3; imcp++)
       {
         for (int iaddr = 0; iaddr < NADDR; iaddr++)
@@ -545,13 +569,16 @@ int main(int argc, char *argv[])
           if (crampMask[imcp][iaddr] != 0)
           {
             float tmpcurrents[24];
-            uint8_t tmpconfigs[24];
             uint8_t adcindex = NADDR * imcp + iaddr;
             ncramps = adc[adcindex]._nCramps;
+	    uint32_t tmpconfigs[24];
+	    //	    uint8_t *tmpconfigs = (uint8_t *)malloc(ncramps * sizeof(uint8_t));
             _AMBads1110_read(&adc[adcindex], &tmpcurrents, &tmpconfigs);
             memcpy(finalcurrents+currentArrayIndex, tmpcurrents, sizeof(float)*ncramps );
+	    //            memcpy(finalconfigs+currentArrayIndex, tmpconfigs, sizeof(uint32_t)*ncramps);	    
             currentArrayIndex += ncramps;
-
+	    //	    index+= sizeof(tmpconfigs)/sizeof(uint8_t);
+	    //	    free(tmpconfigs);
             // for (int ich = 0; ich < ncramps; ich++)
             // {
             //   //             printf("%d %d %7.5f\n", zNumbers[imcp][iaddr][ich], iaddr==1?0:1, tmpcurrents[ich]);
@@ -562,6 +589,12 @@ int main(int argc, char *argv[])
         }
       }
 
+      reorderArrays(finalcurrents, crampList, currentArrayIndex);
+      //      reorderArrays(finalconfigs, crampList, currentArrayIndex);
+      for (int i = 0 ; i < currentArrayIndex; i++)
+	//	printf (" %7.5f %.2x ",1e2*finalcurrents[i] , finalconfigs) ;
+		printf (" %7.5f ",1e2*finalcurrents[i] ) ;
+      
       printf("\n");
       //     /*
       //           if (countloop % 100 == 0)
