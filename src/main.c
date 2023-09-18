@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
   gpio_put(POWERPIN, 0);
 
 #ifndef SOFTSPI
-  spi_init(spi0, 5000000);
+  spi_init(spi0, 10000000);
   spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
   gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
   gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
@@ -509,7 +509,9 @@ int main(int argc, char *argv[])
             {
               //printf("%d_%d ", zNumbers[imcp][iaddr][ich], iaddr == 1 ? 1 : 0);
               // printf(" %7.5f ", tmpcurrents[ich]);
-              crampList[crampCount] = 2*zNumbers[imcp][iaddr][ich] + (iaddr == 1 ? 1 : 0);
+	      //I'm hanging this, but I am not convinced this is correct!!!!!
+	      //              crampList[crampCount] = 2*zNumbers[imcp][iaddr][ich] + (iaddr == 1 ? 1 : 0);
+	      crampList[crampCount] = 2*zNumbers[imcp][iaddr][ich] + (iaddr == 1 ? 0 : 1);
 	      printf(" %d ",crampList[crampCount]);
               crampCount++;
             }
