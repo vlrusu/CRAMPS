@@ -28,7 +28,7 @@
 
 const int PIN_CS = 5;
 
-#define DEVICEID 0xA1
+#define DEVICEID 0xA2
 
 #define POWERPIN 0
 #define PIN_MISO 4

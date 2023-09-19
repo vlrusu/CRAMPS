@@ -14,8 +14,21 @@ import serial
 import serial.tools.list_ports
 from datetime import datetime
 import time
+import psutil
 
 #todo - try ACQ and reset on failure
+#todo - deal with adding new picos while a process is curently running. Right now that is not supported
+
+def check_process_exists(process_name):
+    count = 0
+    for process in psutil.process_iter(attrs=['name']):
+        try:
+            if process.info['name'] == process_name:
+                count=count+1
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    return count
+
 
 def list_usb_serial_devices(device_type):
     available_ports = serial.tools.list_ports.comports()
@@ -46,6 +59,7 @@ def count_different_bits(word1, word2):
 SCANFILE = "input"
 DATAFILE = "crampdata"
 LOGFILE = "log"
+MAPFILE = "usbdevices.map"
 
 if __name__ == '__main__':
 
@@ -74,38 +88,60 @@ if __name__ == '__main__':
 # Format the date and time as a string in a specific format
     formatted_datetime = current_datetime.strftime("%Y-%m-%d-%H-%M")
     
+#first check if a process with name cramps already is running
+    script_name = os.path.basename(__file__)
+    print("The name of the current script is:", script_name)
+    countprocesses =  check_process_exists(script_name)
+    print ("process="+str(countprocesses));
 
-
-    # Get a list of all available serial ports
-    
     device_type = "Pico - Board CDC"  # Modify this to match the device type you're looking for
     
-    usb_serial_devices = list_usb_serial_devices(device_type)
-    sers = []
-    if usb_serial_devices:
-        print("USB Serial Devices:")
-        for device, serial_number in usb_serial_devices:
-            print(f"Device: {device}, Serial Number: {serial_number}")
-            ser = serial.Serial(device,115200)
-            sers.append(ser)
-    else:
-        print("No USB Serial Devices found.")
-        
-    serport = 0
-    deviceid = args.address
-    for ser in sers:
+    mapdata={}
 
-        ser.write(b'R')
-        ser.readline()
+    if countprocesses == 1:
+        #this is the first process, nothing else is running, so ok to remap
+        mapdatafile = open(MAPFILE, "w")
         
-        ser.write(b'D')
+        # Get a list of all available serial ports
+        usb_serial_devices = list_usb_serial_devices(device_type)
+        sers = []
+        if usb_serial_devices:
+            print("USB Serial Devices:")
+            for device, serial_number in usb_serial_devices:
+                print(f"Device: {device}, Serial Number: {serial_number}")
+                ser = serial.Serial(device,115200)
+                sers.append(ser)
+        else:
+            print("No USB Serial Devices found.")
+            exit()
+
+        for ser in sers:
+
+            ser.write(b'R')
+            ser.readline()
+            ser.write(b'D')
     
-        ret = ser.readline().decode('ascii').strip()
-        if (ret==deviceid) :
-            serport = ser
-        print(ret)
-    ser=serport
-    if serport == 0:
+            ret = ser.readline().decode('ascii').strip()
+            mapdatafile.write(ret + " "+ ser.port + "\n")
+
+        mapdatafile.close()
+
+            
+
+    mapdatafile = open(MAPFILE, "r")
+    lines = mapdatafile.readlines()
+    for item in lines:
+        idevice, acmnumber  = item.split()
+        mapdata[idevice] = acmnumber  
+
+#    print(mapdata)
+
+    deviceid = args.address
+
+    ser = serial.Serial(mapdata[deviceid],115200)
+
+    print(f'deviceid={deviceid} port={mapdata[deviceid]}')
+    if ser == 0:
         print("Device ID not found")
         exit()
         
