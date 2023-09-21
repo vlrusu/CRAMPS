@@ -230,7 +230,7 @@ if __name__ == '__main__':
     #now start acquisition for the desired number of samples
     nsample = int(args.nsamples)
     
-    DATAFILE = DATAFILE + "_" + deviceid+"_"+formatted_datetime + ".dat"
+    DATAFILE = DATAFILE + "_" + deviceid+"_"+formatted_datetime + ".csv"
     file = open(DATAFILE, "w")
     count = 0
     ser.write(b'A')
@@ -239,8 +239,10 @@ if __name__ == '__main__':
     line = ser.readline().decode('ascii')
     log.write(line)
     while count<nsample:
-        line = ser.readline().decode('ascii')
-        file.write(line)
+        line = ser.readline().decode('ascii').strip().split()
+        #2023-08-24 15:49:00.277208
+        line[0] = (current_datetime + datetime.timedelta(seconds=float(line[0]))).strftime("%Y-%m-%d %H:%M:%S.%f")
+        file.write(",".join(line))
         count = count+1
     file.close()
     ser.write(b'R')
