@@ -13,6 +13,7 @@ import argparse
 import serial
 import serial.tools.list_ports
 from datetime import datetime
+from datetime import timedelta
 import time
 import psutil
 
@@ -73,6 +74,8 @@ if __name__ == '__main__':
         "-f", "--file", help="File name containing the translations and rotations", required=False)
     parser.add_argument("-a", "--address",
                         help="Address of device", required=True)
+    parser.add_argument("-p", "--panel",
+                        help="Panel number", required=True)
     parser.add_argument("-n", "--nsamples",
                         help="Number of required data points to take", required=False, default = 0)
 
@@ -145,8 +148,9 @@ if __name__ == '__main__':
         print("Device ID not found")
         exit()
         
-    
-    LOGFILE = LOGFILE + "_" + deviceid+"_"+ formatted_datetime+".log"
+    panelnumber = args.panel
+        
+    LOGFILE = LOGFILE + "_" + deviceid+"_MN"+ panelnumber+".log"
     log = open(LOGFILE, "w")
     
     #check whether to power off
@@ -219,7 +223,7 @@ if __name__ == '__main__':
             break
         tmp.append(line)
 
-    SCANFILE = SCANFILE + "_" + deviceid+"_"+ formatted_datetime+".txt"
+    SCANFILE = SCANFILE + "_" + deviceid+"_MN"+ panelnumber+".txt"
     with open(SCANFILE, 'w') as file:
         for i in range(len(tmp)):
             file.write(tmp[i] + "\n")
@@ -230,7 +234,7 @@ if __name__ == '__main__':
     #now start acquisition for the desired number of samples
     nsample = int(args.nsamples)
     
-    DATAFILE = DATAFILE + "_" + deviceid+"_"+formatted_datetime + ".csv"
+    DATAFILE = DATAFILE + "_" + deviceid+"_MN"+panelnumber + ".csv"
     file = open(DATAFILE, "w")
     count = 0
     ser.write(b'A')
@@ -241,8 +245,9 @@ if __name__ == '__main__':
     while count<nsample:
         line = ser.readline().decode('ascii').strip().split()
         #2023-08-24 15:49:00.277208
-        line[0] = (current_datetime + datetime.timedelta(seconds=float(line[0]))).strftime("%Y-%m-%d %H:%M:%S.%f")
+        line[0] = (current_datetime + timedelta(seconds=float(line[0]))).strftime("%Y-%m-%d %H:%M:%S.%f")
         file.write(",".join(line))
+        file.write("\n")
         count = count+1
     file.close()
     ser.write(b'R')

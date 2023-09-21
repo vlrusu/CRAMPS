@@ -1,3 +1,3 @@
-a2 /dev/ttyACM3
+a0 /dev/ttyACM3
 a1 /dev/ttyACM2
-a0 /dev/ttyACM1
+a2 /dev/ttyACM1
